@@ -111,7 +111,7 @@ function AtmosphereService.start()
 	Lighting.ShadowSoftness = 0.6
 	Lighting.EnvironmentDiffuseScale = 0.6
 	Lighting.EnvironmentSpecularScale = 1
-	Lighting.ExposureCompensation = 0.1
+	Lighting.ExposureCompensation = Config.Lighting.Exposure
 	Lighting.ClockTime = Config.StartClockTime
 
 	local atmosphere: Atmosphere = getOrCreate("Atmosphere", "CityHaze", Lighting)
@@ -121,9 +121,9 @@ function AtmosphereService.start()
 
 	-- Bloom is what turns flat Neon parts into glowing signage.
 	local bloom: BloomEffect = getOrCreate("BloomEffect", "NeonBloom", Lighting)
-	bloom.Intensity = 1.2
-	bloom.Size = 32
-	bloom.Threshold = 0.85
+	bloom.Intensity = Config.Lighting.BloomIntensity
+	bloom.Size = Config.Lighting.BloomSize
+	bloom.Threshold = Config.Lighting.BloomThreshold
 
 	-- Slightly lifted, saturated grade: soft toy colors, punchy neon.
 	local grade: ColorCorrectionEffect = getOrCreate("ColorCorrectionEffect", "CozyGrade", Lighting)

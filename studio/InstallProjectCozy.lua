@@ -113,6 +113,22 @@ local Config = {
 		RotateSharpness = 10,
 	},
 
+	-- Neon & light levels. One place to dial the whole city brighter or softer.
+	-- Lower = softer. Bloom is what makes neon "glow"; too much turns signs into blobs of light.
+	Lighting = {
+		Exposure = -0.15, -- Lighting.ExposureCompensation
+		BloomIntensity = 0.4,
+		BloomSize = 18,
+		BloomThreshold = 0.95, -- only the very brightest pixels bloom
+		NeonTransparency = 0.25, -- neon parts are dimmer when slightly see-through
+		WindowGlowTransparency = 0.5, -- lit apartment windows
+		NeonLightBrightness = 0.6, -- PointLights attached to neon parts (lanterns, coin, doors)
+		SignTextBrightness = 1.1, -- SurfaceGui text on signs
+		SignLightBrightness = 0.7, -- colored light signs throw onto the street
+		SignLightRange = 12,
+		GrowLightBrightness = 1.2,
+	},
+
 	-- Home is played in first person, like Tiny Eden. The street keeps the diorama camera.
 	FirstPersonAtHome = true,
 
@@ -689,7 +705,7 @@ function AtmosphereService.start()
 	Lighting.ShadowSoftness = 0.6
 	Lighting.EnvironmentDiffuseScale = 0.6
 	Lighting.EnvironmentSpecularScale = 1
-	Lighting.ExposureCompensation = 0.1
+	Lighting.ExposureCompensation = Config.Lighting.Exposure
 	Lighting.ClockTime = Config.StartClockTime
 
 	local atmosphere: Atmosphere = getOrCreate("Atmosphere", "CityHaze", Lighting)
@@ -699,9 +715,9 @@ function AtmosphereService.start()
 
 	-- Bloom is what turns flat Neon parts into glowing signage.
 	local bloom: BloomEffect = getOrCreate("BloomEffect", "NeonBloom", Lighting)
-	bloom.Intensity = 1.2
-	bloom.Size = 32
-	bloom.Threshold = 0.85
+	bloom.Intensity = Config.Lighting.BloomIntensity
+	bloom.Size = Config.Lighting.BloomSize
+	bloom.Threshold = Config.Lighting.BloomThreshold
 
 	-- Slightly lifted, saturated grade: soft toy colors, punchy neon.
 	local grade: ColorCorrectionEffect = getOrCreate("ColorCorrectionEffect", "CozyGrade", Lighting)
@@ -756,6 +772,7 @@ install("ServerScriptService/Server/Services", "DistrictBuilder", "ModuleScript"
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Palette = require(Shared.Palette)
+local LightCfg = require(Shared.Config).Lighting
 
 export type District = {
 	Root: Model,
@@ -820,9 +837,20 @@ local function neon(
 	color: Color3,
 	light: number?
 ): Part
-	local p = part(parent, name, size, cframe, color, { Material = Enum.Material.Neon, CastShadow = false })
+	local p = part(
+		parent,
+		name,
+		size,
+		cframe,
+		color,
+		{ Material = Enum.Material.Neon, CastShadow = false, Transparency = LightCfg.NeonTransparency }
+	)
 	if light then
-		make("PointLight", { Color = color, Range = light, Brightness = 1.5, Shadows = false }, p)
+		make(
+			"PointLight",
+			{ Color = color, Range = light, Brightness = LightCfg.NeonLightBrightness, Shadows = false },
+			p
+		)
 	end
 	return p
 end
@@ -896,7 +924,7 @@ local function sign(
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
 		PixelsPerStud = 40,
 		LightInfluence = 0,
-		Brightness = 2.5,
+		Brightness = LightCfg.SignTextBrightness,
 	}, board)
 	local label = make("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
@@ -906,7 +934,7 @@ local function sign(
 		TextScaled = true,
 		Font = Enum.Font.Michroma,
 	}, gui)
-	make("UIStroke", { Color = color, Thickness = 2, Transparency = 0.4 }, label)
+	make("UIStroke", { Color = color, Thickness = 1.5, Transparency = 0.65 }, label)
 	make("UIPadding", {
 		PaddingTop = UDim.new(0.12, 0),
 		PaddingBottom = UDim.new(0.12, 0),
@@ -917,11 +945,13 @@ local function sign(
 	local t = 0.25
 	neon(board, "FrameTop", Vector3.new(size.X + t, t, t), cf * CFrame.new(0, size.Y / 2, -0.2), color)
 	neon(board, "FrameBottom", Vector3.new(size.X + t, t, t), cf * CFrame.new(0, -size.Y / 2, -0.2), color)
-	make(
-		"SurfaceLight",
-		{ Face = Enum.NormalId.Front, Color = color, Range = 16, Brightness = 2, Angle = 70 },
-		board
-	)
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Front,
+		Color = color,
+		Range = LightCfg.SignLightRange,
+		Brightness = LightCfg.SignLightBrightness,
+		Angle = 70,
+	}, board)
 	if flicker then
 		board:AddTag("NeonFlicker")
 	end
@@ -1070,10 +1100,10 @@ local function building(parent: Instance, x0: number, x1: number, zNear: number,
 					then Palette.NeonPink
 					elseif roll < 0.14 then Palette.NeonCyan
 					else Palette.Butter
-				neon(model, "Window", Vector3.new(2.2, 2.8, 0.3), CFrame.new(x, y, facadeZ), color):SetAttribute(
-					"Lit",
-					true
-				)
+				local lit =
+					neon(model, "Window", Vector3.new(2.2, 2.8, 0.3), CFrame.new(x, y, facadeZ), color)
+				lit.Transparency = LightCfg.WindowGlowTransparency
+				lit:SetAttribute("Lit", true)
 			else
 				part(
 					model,
@@ -1525,7 +1555,7 @@ local function buildGarden(root: Model): { Model }
 			Face = Enum.NormalId.Bottom,
 			Color = Palette.NeonPurple,
 			Range = 10,
-			Brightness = 3,
+			Brightness = LightCfg.GrowLightBrightness,
 			Angle = 120,
 		}, lamp)
 		lamp:SetAttribute("SoundKey", "GrowLampHum")
@@ -1633,11 +1663,13 @@ local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
 		CFrame.new(-4, y0 + 6.8, zFront + 1.1),
 		Palette.NeonPink
 	)
-	make(
-		"SurfaceLight",
-		{ Face = Enum.NormalId.Bottom, Color = Palette.NeonPink, Range = 6, Brightness = 2, Angle = 100 },
-		strip
-	)
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Bottom,
+		Color = Palette.NeonPink,
+		Range = 6,
+		Brightness = LightCfg.GrowLightBrightness,
+		Angle = 100,
+	}, strip)
 
 	local planters = {}
 	local sillCrops = { "Scallion", "Glowshroom", "Scallion", "Glowshroom" }
@@ -2773,8 +2805,9 @@ install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "AudioControlle
 --!strict
 -- Zone-aware sound. The mix crossfades as you walk between the Street, the Rooftop, your
 -- Balcony ("Home") and Indoors. Rain and the city get muffled behind the window, and the
--- room picks up a living-room reverb. Every sound id lives in Config.Sounds; blank ids are
--- skipped, so this runs silently until you add audio. Full plan: docs/LIGHTING_AND_AUDIO.md.
+-- room picks up a living-room reverb. Every sound id lives in Config.Sounds. Blank one-shots
+-- fall back to sounds built into the Roblox client; blank loops/music stay silent until you
+-- add ids. Full plan: docs/LIGHTING_AND_AUDIO.md.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2848,16 +2881,51 @@ end
 
 -- One-shots ------------------------------------------------------------------
 
+-- Stand-ins built into every Roblox client (the default character sounds), so feedback
+-- works with zero uploads. Pitched and trimmed to feel cute. Any id you put in
+-- Config.Sounds replaces the stand-in for that key.
+type Spec = { id: string, speed: number, volume: number, maxLength: number? }
+local BUILTIN: { [string]: Spec } = {
+	Pop = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 1.8, volume = 0.5 },
+	Water = { id = "rbxasset://sounds/impact_water.mp3", speed = 1.3, volume = 0.3 },
+	Harvest = { id = "rbxasset://sounds/action_get_up.mp3", speed = 1.5, volume = 0.5 },
+	Coin = { id = "rbxasset://sounds/action_jump.mp3", speed = 2.2, volume = 0.3 },
+	Nope = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 0.7, volume = 0.45 },
+	Elevator = { id = "rbxasset://sounds/action_falling.mp3", speed = 1.3, volume = 0.25, maxLength = 1.2 },
+	Purr = { id = "rbxasset://sounds/action_swim.mp3", speed = 0.6, volume = 0.25, maxLength = 1.5 },
+}
+
+local function resolve(key: string): Spec?
+	local id = Sounds[key]
+	if id and id ~= "" then
+		return { id = id, speed = 1, volume = 1 }
+	end
+	return BUILTIN[key]
+end
+
 local rng = Random.new()
 
 local function playOneShot(key: string, at: Vector3?)
-	local id = Sounds[key]
-	if not id or id == "" then
+	local spec = resolve(key)
+	if not spec then
 		return
 	end
 	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.PlaybackSpeed = rng:NextNumber(0.94, 1.06) -- small pitch wobble keeps repeats cute
+	sound.SoundId = spec.id
+	sound.Volume = spec.volume
+	-- Small pitch wobble keeps repeats cute.
+	sound.PlaybackSpeed = spec.speed * rng:NextNumber(0.94, 1.06)
+	if spec.maxLength then
+		local length = spec.maxLength
+		task.delay(length, function()
+			local holder = sound.Parent
+			if holder and holder:IsA("Attachment") then
+				holder:Destroy() -- 3D one-shot: remove its anchor too
+			elseif holder then
+				sound:Destroy()
+			end
+		end)
+	end
 	if at then
 		local anchor = Instance.new("Attachment")
 		anchor.WorldPosition = at
@@ -3078,8 +3146,8 @@ function CameraController.start()
 	-- Tilt-shift: keep a band around the player crisp, soften the foreground and background.
 	local dof = Instance.new("DepthOfFieldEffect")
 	dof.Name = "TiltShift"
-	dof.FarIntensity = 0.35
-	dof.NearIntensity = 0.6
+	dof.FarIntensity = 0.2
+	dof.NearIntensity = 0.25
 	dof.Parent = camera
 
 	local function apply()
@@ -3176,7 +3244,7 @@ function CameraController.start()
 		camera.Focus = CFrame.new(f)
 
 		dof.FocusDistance = currentDistance
-		dof.InFocusRadius = currentDistance * 0.3
+		dof.InFocusRadius = currentDistance * 0.55
 
 		updateOcclusion(camera, f, character)
 	end)

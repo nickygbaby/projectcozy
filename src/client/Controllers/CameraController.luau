@@ -81,8 +81,8 @@ function CameraController.start()
 	-- Tilt-shift: keep a band around the player crisp, soften the foreground and background.
 	local dof = Instance.new("DepthOfFieldEffect")
 	dof.Name = "TiltShift"
-	dof.FarIntensity = 0.35
-	dof.NearIntensity = 0.6
+	dof.FarIntensity = 0.2
+	dof.NearIntensity = 0.25
 	dof.Parent = camera
 
 	local function apply()
@@ -179,7 +179,7 @@ function CameraController.start()
 		camera.Focus = CFrame.new(f)
 
 		dof.FocusDistance = currentDistance
-		dof.InFocusRadius = currentDistance * 0.3
+		dof.InFocusRadius = currentDistance * 0.55
 
 		updateOcclusion(camera, f, character)
 	end)

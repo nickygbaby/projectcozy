@@ -55,9 +55,10 @@ Set by `AtmosphereService` (server, replicates to everyone).
 | GlobalShadows / ShadowSoftness | on / 0.6 | Soft toy-like shadows |
 | EnvironmentDiffuse / Specular | 0.6 / 1.0 | Wet surfaces pick up sky color |
 | Atmosphere | Offset 0.15, Glare 0.4, Haze 2.2 | Towers fade into smog. Scale through haze |
-| Bloom | Intensity 1.2, Size 32, **Threshold 0.85** | Only neon blooms. Matte toy surfaces stay crisp |
+| Exposure | −0.15 | Keeps night dark enough for neon to read without blowing out |
+| Bloom | Intensity 0.4, Size 18, **Threshold 0.95** | A soft glow on the brightest neon only. Big bloom turned the stall into a "dome" of light |
 | Color grade | Saturation +0.18, Contrast +0.08, tint (255,240,250) | Slightly candy-colored |
-| Tilt-shift DoF (client) | Near 0.6, Far 0.35, in-focus band = 30% of camera distance | Miniature feel on the street. Off in first person |
+| Tilt-shift DoF (client) | Near 0.25, Far 0.2, in-focus band = 55% of camera distance | A subtle miniature feel on the street. Off in first person |
 
 ### Time of day
 
@@ -79,22 +80,24 @@ garden pop. Night is when the city earns its color.
 
 ## 3. Light-source inventory
 
-Every light in the district, so we can watch the budget. Future lighting gets expensive
+Every light in the district, so we can watch the budget. **All brightness values come from
+`Config.Lighting`.** Change one number there to dial the whole city softer or brighter.
+Neon parts are 25% see-through (lit windows 50%), which dims their glow. Future lighting gets expensive
 past about 60 *shadow-casting* lights on screen, and only the apartment lamp casts shadows.
 
 | Where | Source | Color | Range | Brightness | Count | Notes |
 |---|---|---|---|---|---|---|
-| Building signs | SurfaceLight (front) | random neon | 16 | 2 | ~8–12 | about half tagged `NeonFlicker` |
-| Stall sign "LUCKY BYTE NOODLES" | SurfaceLight | NeonPink | 16 | 2 | 1 | never flickers (hero sign) |
-| Lantern strings | PointLight | Pink / Amber | 12 | 1.5 | 20 | sway (`Bob`) |
-| Stall lanterns | PointLight | NeonRed | 10 | 1.5 | 4 | sway |
+| Building signs | SurfaceLight (front) | random neon | 12 | 0.7 | ~8–12 | about half tagged `NeonFlicker`; text brightness 1.1 |
+| Stall sign "LUCKY BYTE NOODLES" | SurfaceLight | NeonPink | 12 | 0.7 | 1 | never flickers (hero sign) |
+| Lantern strings | PointLight | Pink / Amber | 12 | 0.6 | 20 | sway (`Bob`) |
+| Stall lanterns | PointLight | NeonRed | 10 | 0.6 | 4 | sway |
 | Broth pot | PointLight | NeonAmber | 8 | 1 | 1 | plus steam particles |
-| Vending holo-coin | PointLight | NeonAmber | 6 | 1.5 | 1 | spins |
-| Elevator door (street) | PointLight | NeonCyan | 8 | 1.5 | 1 | |
-| Sky Garden grow lamps | SurfaceLight (down) | NeonPurple | 10 | 3 | 2 | |
+| Vending holo-coin | PointLight | NeonAmber | 6 | 0.6 | 1 | spins |
+| Elevator door (street) | PointLight | NeonCyan | 8 | 0.6 | 1 | |
+| Sky Garden grow lamps | SurfaceLight (down) | NeonPurple | 10 | 1.2 | 2 | |
 | Ripe crops | PointLight | crop color | 6 | 1.2 | 0–14 | only while ripe: "harvest me" |
 | **Apartment ceiling lamp** | PointLight, **Shadows on** | warm (255,205,150) | 22 | 1.3 | 1 | the key light of home |
-| Windowsill grow strip | SurfaceLight (down) | NeonPink | 6 | 2 | 1 | Tiny Eden "plant light" look |
+| Windowsill grow strip | SurfaceLight (down) | NeonPink | 6 | 1.2 | 1 | Tiny Eden "plant light" look |
 | Balcony fairy lights | PointLight | Butter | 10 | 0.8 | 1 | plus 13 neon bulbs (emissive only) |
 | Windows, curb glow, trims, beacons | Neon material only | various | — | — | many | bloom only, no light cost |
 
@@ -119,8 +122,14 @@ past about 60 *shadow-casting* lights on screen, and only the apartment lamp cas
 
 ## 4. Audio map
 
-Built by `AudioController` (client). **All ids are blank on purpose.** Fill
-`Config.Sounds` with audio you own or licensed Creator Store tracks. Blank ids are skipped.
+Built by `AudioController` (client). Fill `Config.Sounds` with audio you own or licensed
+Creator Store tracks.
+
+- **One-shots work out of the box.** When their id is blank they fall back to sounds built
+  into every Roblox client (the default character sounds, re-pitched): Pop, Water, Harvest,
+  Coin, Nope, Elevator, Purr.
+- **Loops and music stay silent** until you add ids. Roblox doesn't ship rain, city or
+  music sounds.
 
 ### Mix groups
 

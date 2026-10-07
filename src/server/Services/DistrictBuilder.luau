@@ -14,6 +14,7 @@
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Palette = require(Shared.Palette)
+local LightCfg = require(Shared.Config).Lighting
 
 export type District = {
 	Root: Model,
@@ -78,9 +79,20 @@ local function neon(
 	color: Color3,
 	light: number?
 ): Part
-	local p = part(parent, name, size, cframe, color, { Material = Enum.Material.Neon, CastShadow = false })
+	local p = part(
+		parent,
+		name,
+		size,
+		cframe,
+		color,
+		{ Material = Enum.Material.Neon, CastShadow = false, Transparency = LightCfg.NeonTransparency }
+	)
 	if light then
-		make("PointLight", { Color = color, Range = light, Brightness = 1.5, Shadows = false }, p)
+		make(
+			"PointLight",
+			{ Color = color, Range = light, Brightness = LightCfg.NeonLightBrightness, Shadows = false },
+			p
+		)
 	end
 	return p
 end
@@ -154,7 +166,7 @@ local function sign(
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
 		PixelsPerStud = 40,
 		LightInfluence = 0,
-		Brightness = 2.5,
+		Brightness = LightCfg.SignTextBrightness,
 	}, board)
 	local label = make("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
@@ -164,7 +176,7 @@ local function sign(
 		TextScaled = true,
 		Font = Enum.Font.Michroma,
 	}, gui)
-	make("UIStroke", { Color = color, Thickness = 2, Transparency = 0.4 }, label)
+	make("UIStroke", { Color = color, Thickness = 1.5, Transparency = 0.65 }, label)
 	make("UIPadding", {
 		PaddingTop = UDim.new(0.12, 0),
 		PaddingBottom = UDim.new(0.12, 0),
@@ -175,11 +187,13 @@ local function sign(
 	local t = 0.25
 	neon(board, "FrameTop", Vector3.new(size.X + t, t, t), cf * CFrame.new(0, size.Y / 2, -0.2), color)
 	neon(board, "FrameBottom", Vector3.new(size.X + t, t, t), cf * CFrame.new(0, -size.Y / 2, -0.2), color)
-	make(
-		"SurfaceLight",
-		{ Face = Enum.NormalId.Front, Color = color, Range = 16, Brightness = 2, Angle = 70 },
-		board
-	)
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Front,
+		Color = color,
+		Range = LightCfg.SignLightRange,
+		Brightness = LightCfg.SignLightBrightness,
+		Angle = 70,
+	}, board)
 	if flicker then
 		board:AddTag("NeonFlicker")
 	end
@@ -328,10 +342,10 @@ local function building(parent: Instance, x0: number, x1: number, zNear: number,
 					then Palette.NeonPink
 					elseif roll < 0.14 then Palette.NeonCyan
 					else Palette.Butter
-				neon(model, "Window", Vector3.new(2.2, 2.8, 0.3), CFrame.new(x, y, facadeZ), color):SetAttribute(
-					"Lit",
-					true
-				)
+				local lit =
+					neon(model, "Window", Vector3.new(2.2, 2.8, 0.3), CFrame.new(x, y, facadeZ), color)
+				lit.Transparency = LightCfg.WindowGlowTransparency
+				lit:SetAttribute("Lit", true)
 			else
 				part(
 					model,
@@ -783,7 +797,7 @@ local function buildGarden(root: Model): { Model }
 			Face = Enum.NormalId.Bottom,
 			Color = Palette.NeonPurple,
 			Range = 10,
-			Brightness = 3,
+			Brightness = LightCfg.GrowLightBrightness,
 			Angle = 120,
 		}, lamp)
 		lamp:SetAttribute("SoundKey", "GrowLampHum")
@@ -891,11 +905,13 @@ local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
 		CFrame.new(-4, y0 + 6.8, zFront + 1.1),
 		Palette.NeonPink
 	)
-	make(
-		"SurfaceLight",
-		{ Face = Enum.NormalId.Bottom, Color = Palette.NeonPink, Range = 6, Brightness = 2, Angle = 100 },
-		strip
-	)
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Bottom,
+		Color = Palette.NeonPink,
+		Range = 6,
+		Brightness = LightCfg.GrowLightBrightness,
+		Angle = 100,
+	}, strip)
 
 	local planters = {}
 	local sillCrops = { "Scallion", "Glowshroom", "Scallion", "Glowshroom" }

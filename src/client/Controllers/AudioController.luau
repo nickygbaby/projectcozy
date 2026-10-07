@@ -1,8 +1,9 @@
 --!strict
 -- Zone-aware sound. The mix crossfades as you walk between the Street, the Rooftop, your
 -- Balcony ("Home") and Indoors. Rain and the city get muffled behind the window, and the
--- room picks up a living-room reverb. Every sound id lives in Config.Sounds; blank ids are
--- skipped, so this runs silently until you add audio. Full plan: docs/LIGHTING_AND_AUDIO.md.
+-- room picks up a living-room reverb. Every sound id lives in Config.Sounds. Blank one-shots
+-- fall back to sounds built into the Roblox client; blank loops/music stay silent until you
+-- add ids. Full plan: docs/LIGHTING_AND_AUDIO.md.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -76,16 +77,51 @@ end
 
 -- One-shots ------------------------------------------------------------------
 
+-- Stand-ins built into every Roblox client (the default character sounds), so feedback
+-- works with zero uploads. Pitched and trimmed to feel cute. Any id you put in
+-- Config.Sounds replaces the stand-in for that key.
+type Spec = { id: string, speed: number, volume: number, maxLength: number? }
+local BUILTIN: { [string]: Spec } = {
+	Pop = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 1.8, volume = 0.5 },
+	Water = { id = "rbxasset://sounds/impact_water.mp3", speed = 1.3, volume = 0.3 },
+	Harvest = { id = "rbxasset://sounds/action_get_up.mp3", speed = 1.5, volume = 0.5 },
+	Coin = { id = "rbxasset://sounds/action_jump.mp3", speed = 2.2, volume = 0.3 },
+	Nope = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 0.7, volume = 0.45 },
+	Elevator = { id = "rbxasset://sounds/action_falling.mp3", speed = 1.3, volume = 0.25, maxLength = 1.2 },
+	Purr = { id = "rbxasset://sounds/action_swim.mp3", speed = 0.6, volume = 0.25, maxLength = 1.5 },
+}
+
+local function resolve(key: string): Spec?
+	local id = Sounds[key]
+	if id and id ~= "" then
+		return { id = id, speed = 1, volume = 1 }
+	end
+	return BUILTIN[key]
+end
+
 local rng = Random.new()
 
 local function playOneShot(key: string, at: Vector3?)
-	local id = Sounds[key]
-	if not id or id == "" then
+	local spec = resolve(key)
+	if not spec then
 		return
 	end
 	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.PlaybackSpeed = rng:NextNumber(0.94, 1.06) -- small pitch wobble keeps repeats cute
+	sound.SoundId = spec.id
+	sound.Volume = spec.volume
+	-- Small pitch wobble keeps repeats cute.
+	sound.PlaybackSpeed = spec.speed * rng:NextNumber(0.94, 1.06)
+	if spec.maxLength then
+		local length = spec.maxLength
+		task.delay(length, function()
+			local holder = sound.Parent
+			if holder and holder:IsA("Attachment") then
+				holder:Destroy() -- 3D one-shot: remove its anchor too
+			elseif holder then
+				sound:Destroy()
+			end
+		end)
+	end
 	if at then
 		local anchor = Instance.new("Attachment")
 		anchor.WorldPosition = at

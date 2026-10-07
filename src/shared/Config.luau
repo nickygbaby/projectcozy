@@ -40,6 +40,22 @@ local Config = {
 		RotateSharpness = 10,
 	},
 
+	-- Neon & light levels. One place to dial the whole city brighter or softer.
+	-- Lower = softer. Bloom is what makes neon "glow"; too much turns signs into blobs of light.
+	Lighting = {
+		Exposure = -0.15, -- Lighting.ExposureCompensation
+		BloomIntensity = 0.4,
+		BloomSize = 18,
+		BloomThreshold = 0.95, -- only the very brightest pixels bloom
+		NeonTransparency = 0.25, -- neon parts are dimmer when slightly see-through
+		WindowGlowTransparency = 0.5, -- lit apartment windows
+		NeonLightBrightness = 0.6, -- PointLights attached to neon parts (lanterns, coin, doors)
+		SignTextBrightness = 1.1, -- SurfaceGui text on signs
+		SignLightBrightness = 0.7, -- colored light signs throw onto the street
+		SignLightRange = 12,
+		GrowLightBrightness = 1.2,
+	},
+
 	-- Home is played in first person, like Tiny Eden. The street keeps the diorama camera.
 	FirstPersonAtHome = true,
 
