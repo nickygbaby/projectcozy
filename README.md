@@ -10,18 +10,23 @@ street, grow glowing ingredients on the roof and pet the robo-cat.
 
 ## Quick start (no tools needed)
 
-**Easiest: open the place file.** Download [`studio/ProjectCozy.rbxlx`](studio/ProjectCozy.rbxlx),
-open it in Roblox Studio (File → Open from File) and press **Play**.
+**Option A: one paste in the Command Bar (recommended).**
+1. Open a place in Studio, then **View → Command Bar**.
+2. Paste all of [`studio/CommandBarLoader.lua`](studio/CommandBarLoader.lua) and press **Enter**.
+   It downloads every script from this repo's branch and installs it. Run it again any time
+   to update.
+3. Press **Play**.
 
-**Or install into an existing place.** [`studio/InstallProjectCozy.lua`](studio/InstallProjectCozy.lua)
-is too big for the Command Bar, so install it as a plugin:
+**Option B: open the place file.** [`studio/ProjectCozy.rbxlx`](studio/ProjectCozy.rbxlx) →
+File → Open from File → Play.
 
-1. Add a Script anywhere, open it and paste the whole installer over its contents.
-2. Right-click the Script → **Save as Local Plugin…**, then delete the Script.
-3. **Plugins** tab → **Project Cozy** → **Install**, then press **Play**.
+**Option C: no internet in Studio?** Paste [`studio/commandbar/part01.lua`](studio/commandbar)
+through the last part into the Command Bar, one at a time, in order. Each part is under
+4,000 characters, because the Command Bar cuts off long pastes. Each part checks that the
+previous one ran.
 
-After changing `src/`, rebuild both with `rojo build -o studio/ProjectCozy.rbxlx` and
-`python3 studio/build_installer.py .`.
+After changing `src/`, rebuild everything:
+`rojo build -o studio/ProjectCozy.rbxlx && python3 studio/build_installer.py . && python3 studio/build_commandbar.py .`
 
 ## Getting it into Roblox Studio with Rojo (for ongoing development)
 
@@ -61,6 +66,7 @@ src/
     Items.luau           ingredients + recipes
     Juice.luau           spring squash/stretch/pop animation library
     Zones.luau           Street / Rooftop / Home / Indoors area checks
+    Neighbors.luau       the people in your building and what they like
   server/              → ServerScriptService.Server
     Main.server.luau     boots the services
     Services/
@@ -70,6 +76,7 @@ src/
       GardenService        planters: plant → water → grow → dries → … → harvest
       StallService         chibi customers, orders, serving, tips
       InteractionsService  vending machine, petting Byte, home elevator
+      HomeService          Neighbor Net orders, hearts, kitchenette cooking
       Notify               toast/pop remotes
   client/              → StarterPlayerScripts.Client
     Main.client.luau     boots the controllers
@@ -79,6 +86,7 @@ src/
       PlantVisuals         draws crops from planter attributes
       HudController        credits, clock, inventory, toasts
       RainController       rain particles (kept outside the apartment)
+      HomePanels           Neighbor Net + Kitchenette screens
       AudioController      zone mix, muffled rain indoors, reverb, positional loops, one-shots
 ```
 

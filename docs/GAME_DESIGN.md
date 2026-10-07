@@ -49,7 +49,10 @@ heart.
 3. **Serve:** Chibi customers pop onto the stools with an order bubble and a patience bar.
    Serve the bowl if you have the ingredients. You earn the price plus a tip of up to 50%
    for speed.
-4. **Unwind:** Pet Byte the robo-cat. Watch the rain.
+4. **Help the neighbors:** The **Neighbor Net** terminal in your flat lists 3 requests
+   (raw crops or jars). Deliver to earn credits and hearts. Cook jars at the
+   **Kitchenette** from 2 crops each.
+5. **Unwind:** Pet Byte the robo-cat. Watch the rain.
 
 | Dish | Needs | Price |
 |---|---|---|
@@ -87,8 +90,9 @@ All numbers live in `src/shared/Config.luau` and `src/shared/Items.luau`.
 ### M1: Make it feel *owned*
 - [ ] Furnish the apartment: place furniture, pots and **light fixtures** on a grid and earn a
       "Cozy Rating". Unlock more windowsill/balcony slots
-- [ ] Neighbor orders board (Tiny Eden): requests for jars, pickles and broths, paid in
-      credits + friendship
+- [x] Neighbor Net (Tiny Eden): 3 rotating requests from 6 named neighbors, paid in credits +
+      hearts. Each heart adds +5% to that neighbor's rewards (max +50%)
+- [x] Kitchenette: crops → jars (Scallion Pickles, Glowshroom Jam, Ember Chili Oil)
 - [ ] Deeper care: light level (pots need a grow light or sunny side), fertilizer for bonus
       yield
 - [ ] Byte visits the apartment and naps in the cat bed

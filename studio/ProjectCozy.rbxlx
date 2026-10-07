@@ -15,25 +15,30 @@
       </Properties>
       <Item class="RemoteEvent" referent="3">
         <Properties>
-          <string name="Name">Pop</string>
+          <string name="Name">HomeAction</string>
         </Properties>
       </Item>
       <Item class="RemoteEvent" referent="4">
         <Properties>
-          <string name="Name">Sfx</string>
+          <string name="Name">Pop</string>
         </Properties>
       </Item>
       <Item class="RemoteEvent" referent="5">
+        <Properties>
+          <string name="Name">Sfx</string>
+        </Properties>
+      </Item>
+      <Item class="RemoteEvent" referent="6">
         <Properties>
           <string name="Name">Toast</string>
         </Properties>
       </Item>
     </Item>
-    <Item class="Folder" referent="6">
+    <Item class="Folder" referent="7">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="7">
+      <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">Config</string>
           <string name="Source"><![CDATA[--!strict
@@ -55,6 +60,15 @@ local Config = {
 	-- and the soil dries out again after every growth stage)
 	GrowSeconds = 45, -- total watered time from seed to ripe
 	HarvestYield = 2,
+
+	-- Neighbor Net orders (home)
+	Orders = {
+		Slots = 3, -- open requests at once
+		RewardMultiplier = 1.4, -- reward = item value x count x this
+		HeartBonus = 0.05, -- +5% reward per heart with that neighbor...
+		MaxBonusHearts = 10, -- ...up to +50%
+		RefillSeconds = 4,
+	},
 
 	-- Noodle stall
 	CustomerSpawnInterval = { Min = 6, Max = 14 },
@@ -128,6 +142,7 @@ local Config = {
 		Coin = "",
 		Water = "",
 		Harvest = "",
+		Cook = "",
 		Elevator = "",
 		Purr = "",
 		Nope = "",
@@ -138,11 +153,11 @@ return Config
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="8">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">Items</string>
           <string name="Source"><![CDATA[--!strict
--- Ingredients and the dishes they make.
+-- Ingredients, home-made jars, the stall dishes and the home (kitchenette) recipes.
 
 local Palette = require(script.Parent.Palette)
 
@@ -151,6 +166,8 @@ export type Item = {
 	Name: string,
 	Color: Color3,
 	Grown: boolean,
+	Jar: boolean, -- cooked at home, Tiny Eden style preserves
+	Value: number, -- base worth for neighbor orders
 }
 
 export type Recipe = {
@@ -162,14 +179,75 @@ export type Recipe = {
 }
 
 local Items: { [string]: Item } = {
-	Noodles = { Id = "Noodles", Name = "Noodle Brick", Color = Palette.Butter, Grown = false },
-	Scallion = { Id = "Scallion", Name = "Synth Scallion", Color = Palette.NeonLime, Grown = true },
-	Glowshroom = { Id = "Glowshroom", Name = "Glowshroom", Color = Palette.NeonCyan, Grown = true },
-	EmberChili = { Id = "EmberChili", Name = "Ember Chili", Color = Palette.NeonRed, Grown = true },
+	Noodles = {
+		Id = "Noodles",
+		Name = "Noodle Brick",
+		Color = Palette.Butter,
+		Grown = false,
+		Jar = false,
+		Value = 4,
+	},
+	Scallion = {
+		Id = "Scallion",
+		Name = "Synth Scallion",
+		Color = Palette.NeonLime,
+		Grown = true,
+		Jar = false,
+		Value = 6,
+	},
+	Glowshroom = {
+		Id = "Glowshroom",
+		Name = "Glowshroom",
+		Color = Palette.NeonCyan,
+		Grown = true,
+		Jar = false,
+		Value = 8,
+	},
+	EmberChili = {
+		Id = "EmberChili",
+		Name = "Ember Chili",
+		Color = Palette.NeonRed,
+		Grown = true,
+		Jar = false,
+		Value = 12,
+	},
+	PickledScallion = {
+		Id = "PickledScallion",
+		Name = "Scallion Pickles",
+		Color = Palette.Mint,
+		Grown = false,
+		Jar = true,
+		Value = 18,
+	},
+	GlowJam = {
+		Id = "GlowJam",
+		Name = "Glowshroom Jam",
+		Color = Palette.Sky,
+		Grown = false,
+		Jar = true,
+		Value = 24,
+	},
+	ChiliOil = {
+		Id = "ChiliOil",
+		Name = "Ember Chili Oil",
+		Color = Palette.Coral,
+		Grown = false,
+		Jar = true,
+		Value = 34,
+	},
 }
 
 -- Display order for UI
-local ItemOrder = { "Noodles", "Scallion", "Glowshroom", "EmberChili" }
+local ItemOrder =
+	{ "Noodles", "Scallion", "Glowshroom", "EmberChili", "PickledScallion", "GlowJam", "ChiliOil" }
+
+-- Kitchenette recipes at home: crops -> jars.
+export type HomeRecipe = { Id: string, Makes: string, Icon: string, Needs: { [string]: number } }
+local HomeRecipes: { HomeRecipe } = {
+	{ Id = "Pickle", Makes = "PickledScallion", Icon = "🥒", Needs = { Scallion = 2 } },
+	{ Id = "Jam", Makes = "GlowJam", Icon = "🫙", Needs = { Glowshroom = 2 } },
+	{ Id = "Oil", Makes = "ChiliOil", Icon = "🌶️", Needs = { EmberChili = 2, Scallion = 1 } },
+}
 
 local Recipes: { [string]: Recipe } = {
 	NeonShoyu = {
@@ -213,12 +291,13 @@ return {
 	ItemOrder = ItemOrder,
 	Recipes = Recipes,
 	RecipeOrder = RecipeOrder,
+	HomeRecipes = HomeRecipes,
 	describeNeeds = describeNeeds,
 }
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="9">
+      <Item class="ModuleScript" referent="10">
         <Properties>
           <string name="Name">Juice</string>
           <string name="Source"><![CDATA[--!strict
@@ -440,7 +519,64 @@ return Juice
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="10">
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">Neighbors</string>
+          <string name="Source"><![CDATA[--!strict
+-- The people in your building. They post requests on Neighbor Net; every delivery makes
+-- them a little fonder of you (hearts), and fond neighbors pay a little extra.
+
+export type Neighbor = {
+	Name: string,
+	Floor: string,
+	Blurb: string,
+	Likes: { string }, -- item ids they ask for
+}
+
+local Neighbors: { Neighbor } = {
+	{
+		Name = "Mrs. Oda",
+		Floor = "4F",
+		Blurb = "Retired netrunner. Still hacks her toaster.",
+		Likes = { "GlowJam", "Glowshroom", "PickledScallion" },
+	},
+	{
+		Name = "Kiko",
+		Floor = "12F",
+		Blurb = "Courier. Always running, always hungry.",
+		Likes = { "Scallion", "ChiliOil", "Noodles" },
+	},
+	{
+		Name = "Rook",
+		Floor = "9F",
+		Blurb = "Ex chrome-boxer who took up knitting.",
+		Likes = { "EmberChili", "ChiliOil" },
+	},
+	{
+		Name = "Lumi",
+		Floor = "21F",
+		Blurb = "Hacker. Only eats things that glow.",
+		Likes = { "Glowshroom", "GlowJam" },
+	},
+	{
+		Name = "Grandpa Tetsu",
+		Floor = "2F",
+		Blurb = "Remembers when the sky was blue.",
+		Likes = { "PickledScallion", "Scallion", "GlowJam" },
+	},
+	{
+		Name = "Ami & Yui",
+		Floor = "15F",
+		Blurb = "Twin streamers. Want everything 'aesthetic'.",
+		Likes = { "GlowJam", "ChiliOil", "Glowshroom" },
+	},
+}
+
+return Neighbors
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
         <Properties>
           <string name="Name">Palette</string>
           <string name="Source"><![CDATA[--!strict
@@ -508,7 +644,7 @@ return Palette
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="11">
+      <Item class="ModuleScript" referent="13">
         <Properties>
           <string name="Name">Zones</string>
           <string name="Source"><![CDATA[--!strict
@@ -547,15 +683,15 @@ return Zones
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="12">
+  <Item class="ServerScriptService" referent="14">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="13">
+    <Item class="Folder" referent="15">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="Script" referent="14">
+      <Item class="Script" referent="16">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
@@ -570,6 +706,7 @@ local PlayerDataService = require(Services.PlayerDataService)
 local GardenService = require(Services.GardenService)
 local StallService = require(Services.StallService)
 local InteractionsService = require(Services.InteractionsService)
+local HomeService = require(Services.HomeService)
 
 AtmosphereService.start()
 PlayerDataService.start()
@@ -578,16 +715,17 @@ local district = DistrictBuilder.build()
 GardenService.start(district.Planters)
 StallService.start(district.CustomerSpots, district.StallPot)
 InteractionsService.start(district.Vending, district.RoboCat, district.Elevators)
+HomeService.start(district.Terminal, district.Kitchen)
 
 print("[ProjectCozy] Lantern Row is open. Stay cozy, choom.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Folder" referent="15">
+      <Item class="Folder" referent="17">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">AtmosphereService</string>
             <string name="Source"><![CDATA[--!strict
@@ -754,7 +892,7 @@ return AtmosphereService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">DistrictBuilder</string>
             <string name="Source"><![CDATA[--!strict
@@ -783,6 +921,16 @@ export type District = {
 	Planters: { Model },
 	RoboCat: Model,
 	Elevators: { Up: BasePart, Down: BasePart, HomeArrival: CFrame, StreetArrival: CFrame },
+	Terminal: BasePart,
+	Kitchen: BasePart,
+}
+
+type Apartment = {
+	Planters: { Model },
+	Down: BasePart,
+	HomeArrival: CFrame,
+	Terminal: BasePart,
+	Kitchen: BasePart,
 }
 
 local SIDEWALK_Y = 0.6
@@ -1583,7 +1731,7 @@ end
 -- Home: a small apartment on top of the tower behind the stall, Tiny Eden style. Inside is
 -- warm, cluttered and green; the big window looks down onto the neon street. The balcony
 -- and windowsill hold the player's own pots.
-local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
+local function buildApartment(root: Model): Apartment
 	local home = make("Model", { Name = "Apartment" }, root)
 	local y0 = HOME_Y
 	local x0, x1, zFront, zBack = -9, 9, 22, 34
@@ -1768,13 +1916,45 @@ local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
 	part(home, "Pillow", Vector3.new(3, 0.6, 1.4), CFrame.new(6, y0 + 2.7, cz + 4.6), Palette.Sky)
 	-- Kitchenette with a fridge that hums.
 	part(home, "Counter", Vector3.new(6, 3.2, 2.2), CFrame.new(-4.5, y0 + 1.6, zBack - 1.4), Palette.Mint)
-	part(
+	local counterTop = part(
 		home,
 		"CounterTop",
 		Vector3.new(6.2, 0.3, 2.4),
 		CFrame.new(-4.5, y0 + 3.35, zBack - 1.4),
 		Palette.Cream
 	)
+	prompt(counterTop, "Cook", "Kitchenette", { Name = "KitchenPrompt", MaxActivationDistance = 8 })
+
+	-- Neighbor Net: a little wall terminal where the building posts requests.
+	local terminal = part(
+		home,
+		"NeighborNet",
+		Vector3.new(0.3, 2.4, 3.6),
+		CFrame.new(x0 + 0.75, y0 + 4.5, 28.5),
+		Palette.Ink,
+		{ CastShadow = false }
+	)
+	local screen = make("SurfaceGui", {
+		Face = Enum.NormalId.Right,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 50,
+		LightInfluence = 0,
+		Brightness = LightCfg.SignTextBrightness,
+	}, terminal)
+	make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Palette.Indigo,
+		Text = "NEIGHBOR NET\n♥ requests ♥",
+		TextColor3 = Palette.NeonCyan,
+		TextScaled = true,
+		Font = Enum.Font.Michroma,
+	}, screen)
+	make(
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Right, Color = Palette.NeonCyan, Range = 6, Brightness = 0.5 },
+		terminal
+	)
+	prompt(terminal, "Check requests", "Neighbor Net", { Name = "TerminalPrompt", MaxActivationDistance = 8 })
 	local fridge =
 		part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
 	neon(
@@ -1836,7 +2016,13 @@ local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
 	)
 	local homeArrival = CFrame.lookAt(Vector3.new(2, y0 + 3, 26), Vector3.new(2, y0 + 3, zFront))
 
-	return planters, down, homeArrival
+	return {
+		Planters = planters,
+		Down = down,
+		HomeArrival = homeArrival,
+		Terminal = terminal,
+		Kitchen = counterTop,
+	}
 end
 
 local function buildElevatorUp(root: Model): (BasePart, CFrame)
@@ -1881,8 +2067,9 @@ function DistrictBuilder.build(): District
 	local vending = buildVending(root)
 	local cat = buildRoboCat(root)
 	local planters = buildGarden(root)
-	local homePlanters, elevatorDown, homeArrival = buildApartment(root)
-	for _, planter in homePlanters do
+	local apartment = buildApartment(root)
+	local elevatorDown, homeArrival = apartment.Down, apartment.HomeArrival
+	for _, planter in apartment.Planters do
 		table.insert(planters, planter)
 	end
 	local elevatorUp, streetArrival = buildElevatorUp(root)
@@ -1912,6 +2099,8 @@ function DistrictBuilder.build(): District
 			HomeArrival = homeArrival,
 			StreetArrival = streetArrival,
 		},
+		Terminal = apartment.Terminal,
+		Kitchen = apartment.Kitchen,
 	}
 end
 
@@ -1919,7 +2108,7 @@ return DistrictBuilder
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">GardenService</string>
             <string name="Source"><![CDATA[--!strict
@@ -2018,7 +2207,163 @@ return GardenService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="21">
+          <Properties>
+            <string name="Name">HomeService</string>
+            <string name="Source"><![CDATA[--!strict
+-- Tiny Eden's loop at home: neighbors post requests on Neighbor Net, you grow and cook what
+-- they want, deliver it from the terminal, and they warm up to you (hearts).
+-- Clients only *ask* (HomeAction remote); everything is validated here.
+
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local ItemsModule = require(Shared.Items)
+local Neighbors = require(Shared.Neighbors)
+
+local PlayerData = require(script.Parent.PlayerDataService)
+local Notify = require(script.Parent.Notify)
+
+local HomeService = {}
+
+local rng = Random.new()
+local lastAction: { [Player]: number } = {}
+
+local function heartsOf(profile: PlayerData.Profile, name: string): number
+	return profile.Friends[name] or 0
+end
+
+local function makeOrder(profile: PlayerData.Profile): PlayerData.Order
+	-- Prefer neighbors who don't already have an open request.
+	local busy = {}
+	for _, order in profile.Orders do
+		busy[order.Neighbor] = true
+	end
+	local pool = {}
+	for _, n in Neighbors do
+		if not busy[n.Name] then
+			table.insert(pool, n)
+		end
+	end
+	if #pool == 0 then
+		pool = Neighbors
+	end
+	local neighbor = pool[rng:NextInteger(1, #pool)]
+	local itemId = neighbor.Likes[rng:NextInteger(1, #neighbor.Likes)]
+	local item = ItemsModule.Items[itemId]
+	local count = if item.Jar then rng:NextInteger(1, 2) else rng:NextInteger(2, 4)
+	local bonus = 1
+		+ Config.Orders.HeartBonus
+			* math.min(heartsOf(profile, neighbor.Name), Config.Orders.MaxBonusHearts)
+	return {
+		Id = HttpService:GenerateGUID(false),
+		Neighbor = neighbor.Name,
+		Item = itemId,
+		Count = count,
+		Reward = math.floor(item.Value * count * Config.Orders.RewardMultiplier * bonus + 0.5),
+	}
+end
+
+local function fillOrders(player: Player, profile: PlayerData.Profile)
+	while #profile.Orders < Config.Orders.Slots do
+		table.insert(profile.Orders, makeOrder(profile))
+	end
+	PlayerData.sync(player)
+end
+
+local function near(player: Player, target: BasePart, range: number): boolean
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	return root ~= nil and (root.Position - target.Position).Magnitude <= range
+end
+
+local function deliver(player: Player, profile: PlayerData.Profile, orderId: string, terminal: BasePart)
+	local index, order = nil, nil
+	for i, o in profile.Orders do
+		if o.Id == orderId then
+			index, order = i, o
+			break
+		end
+	end
+	if not (index and order) then
+		return
+	end
+	local item = ItemsModule.Items[order.Item]
+	if not PlayerData.takeItems(player, { [order.Item] = order.Count }) then
+		Notify.toast(player, `Need {order.Count}x {item.Name}`, "nope")
+		return
+	end
+	table.remove(profile.Orders, index)
+	profile.Friends[order.Neighbor] = heartsOf(profile, order.Neighbor) + 1
+	PlayerData.addCredits(player, order.Reward)
+	PlayerData.sync(player)
+	Notify.pop(terminal, 0.6)
+	Notify.toast(player, `{order.Neighbor}: "Thank you, dear!"  +{order.Reward} cr  ♥`, "good")
+
+	-- A fresh request pings in a moment later, like a real message.
+	task.delay(Config.Orders.RefillSeconds, function()
+		if PlayerData.get(player) == profile then
+			fillOrders(player, profile)
+		end
+	end)
+end
+
+local function cook(player: Player, recipeId: string, kitchen: BasePart)
+	local recipe = nil
+	for _, r in ItemsModule.HomeRecipes do
+		if r.Id == recipeId then
+			recipe = r
+			break
+		end
+	end
+	if not recipe then
+		return
+	end
+	if not PlayerData.takeItems(player, recipe.Needs) then
+		Notify.toast(player, `Need {ItemsModule.describeNeeds(recipe.Needs)}`, "nope")
+		return
+	end
+	PlayerData.addItem(player, recipe.Makes, 1)
+	Notify.pop(kitchen, 0.8)
+	Notify.sfx("Cook", kitchen.Position)
+	Notify.toast(player, `+1 {ItemsModule.Items[recipe.Makes].Name} {recipe.Icon}`, "good")
+end
+
+function HomeService.start(terminal: BasePart, kitchen: BasePart)
+	PlayerData.onLoaded(fillOrders)
+
+	local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("HomeAction") :: RemoteEvent
+	remote.OnServerEvent:Connect(function(player, action: any, arg: any)
+		-- Light throttle: clients can't spam the remote.
+		local now = os.clock()
+		if (lastAction[player] or 0) + 0.25 > now then
+			return
+		end
+		lastAction[player] = now
+
+		local profile = PlayerData.get(player)
+		if not profile or typeof(arg) ~= "string" then
+			return
+		end
+		if action == "deliver" and near(player, terminal, 16) then
+			deliver(player, profile, arg, terminal)
+		elseif action == "cook" and near(player, kitchen, 16) then
+			cook(player, arg, kitchen)
+		end
+	end)
+
+	game:GetService("Players").PlayerRemoving:Connect(function(player)
+		lastAction[player] = nil
+	end)
+end
+
+return HomeService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">InteractionsService</string>
             <string name="Source"><![CDATA[--!strict
@@ -2087,7 +2432,7 @@ return InteractionsService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Notify</string>
             <string name="Source"><![CDATA[--!strict
@@ -2126,24 +2471,30 @@ return Notify
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">PlayerDataService</string>
             <string name="Source"><![CDATA[--!strict
 -- Owns each player's credits and inventory. Saves to DataStore and mirrors values onto
--- player attributes ("Credits", "Inv_<ItemId>") so the client HUD can read them for free.
+-- player attributes ("Credits", "Inv_<ItemId>", plus JSON "Orders"/"Friends") so the client
+-- UI can read them for free.
 
 local DataStoreService = game:GetService("DataStoreService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local ItemsModule = require(Shared.Items)
 
+export type Order = { Id: string, Neighbor: string, Item: string, Count: number, Reward: number }
+
 export type Profile = {
 	Credits: number,
 	Inventory: { [string]: number },
 	Stats: { Served: number, Harvested: number },
+	Orders: { Order },
+	Friends: { [string]: number }, -- neighbor name -> hearts
 }
 
 local PlayerDataService = {}
@@ -2173,6 +2524,8 @@ local function defaultProfile(): Profile
 		Credits = Config.StartingCredits,
 		Inventory = inventory,
 		Stats = { Served = 0, Harvested = 0 },
+		Orders = {},
+		Friends = {},
 	}
 end
 
@@ -2195,6 +2548,27 @@ local function reconcile(saved: any): Profile
 		profile.Stats.Served = tonumber(saved.Stats.Served) or 0
 		profile.Stats.Harvested = tonumber(saved.Stats.Harvested) or 0
 	end
+	if typeof(saved.Orders) == "table" then
+		for _, order in saved.Orders do
+			if
+				typeof(order) == "table"
+				and typeof(order.Id) == "string"
+				and ItemsModule.Items[order.Item]
+				and typeof(order.Count) == "number"
+				and typeof(order.Reward) == "number"
+				and typeof(order.Neighbor) == "string"
+			then
+				table.insert(profile.Orders, order)
+			end
+		end
+	end
+	if typeof(saved.Friends) == "table" then
+		for name, hearts in saved.Friends do
+			if typeof(name) == "string" and typeof(hearts) == "number" then
+				profile.Friends[name] = hearts
+			end
+		end
+	end
 	return profile
 end
 
@@ -2207,7 +2581,11 @@ local function mirror(player: Player, profile: Profile)
 	for id, count in profile.Inventory do
 		player:SetAttribute(`Inv_{id}`, count)
 	end
+	player:SetAttribute("Orders", HttpService:JSONEncode(profile.Orders))
+	player:SetAttribute("Friends", HttpService:JSONEncode(profile.Friends))
 end
+
+local loadedCallbacks: { (Player, Profile) -> () } = {}
 
 local function load(player: Player)
 	local saved = nil
@@ -2234,6 +2612,9 @@ local function load(player: Player)
 	profiles[player] = profile
 	canSave[player] = loaded and store ~= nil
 	mirror(player, profile)
+	for _, callback in loadedCallbacks do
+		task.spawn(callback, player, profile)
+	end
 end
 
 local function save(player: Player)
@@ -2315,6 +2696,22 @@ function PlayerDataService.bumpStat(player: Player, stat: "Served" | "Harvested"
 	end
 end
 
+-- Call after changing profile.Orders / profile.Friends directly, to push them to the client.
+function PlayerDataService.sync(player: Player)
+	local profile = profiles[player]
+	if profile then
+		mirror(player, profile)
+	end
+end
+
+-- Runs once per player as soon as their profile is ready (including players already loaded).
+function PlayerDataService.onLoaded(callback: (Player, Profile) -> ())
+	table.insert(loadedCallbacks, callback)
+	for player, profile in profiles do
+		task.spawn(callback, player, profile)
+	end
+end
+
 function PlayerDataService.start()
 	Players.PlayerAdded:Connect(load)
 	for _, player in Players:GetPlayers() do
@@ -2348,7 +2745,7 @@ return PlayerDataService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">StallService</string>
             <string name="Source"><![CDATA[--!strict
@@ -2595,23 +2992,23 @@ return StallService
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="23">
+  <Item class="StarterPlayer" referent="26">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="24">
+    <Item class="StarterPlayerScripts" referent="27">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="25">
+      <Item class="Folder" referent="28">
         <Properties>
           <string name="Name">Client</string>
         </Properties>
-        <Item class="Folder" referent="26">
+        <Item class="Folder" referent="29">
           <Properties>
             <string name="Name">Controllers</string>
           </Properties>
-          <Item class="ModuleScript" referent="27">
+          <Item class="ModuleScript" referent="30">
             <Properties>
               <string name="Name">AmbientController</string>
               <string name="Source"><![CDATA[--!strict
@@ -2820,7 +3217,7 @@ return AmbientController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="28">
+          <Item class="ModuleScript" referent="31">
             <Properties>
               <string name="Name">AudioController</string>
               <string name="Source"><![CDATA[--!strict
@@ -2910,6 +3307,7 @@ local BUILTIN: { [string]: Spec } = {
 	Pop = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 1.8, volume = 0.5 },
 	Water = { id = "rbxasset://sounds/impact_water.mp3", speed = 1.3, volume = 0.3 },
 	Harvest = { id = "rbxasset://sounds/action_get_up.mp3", speed = 1.5, volume = 0.5 },
+	Cook = { id = "rbxasset://sounds/impact_water.mp3", speed = 0.8, volume = 0.3 },
 	Coin = { id = "rbxasset://sounds/action_jump.mp3", speed = 2.2, volume = 0.3 },
 	Nope = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 0.7, volume = 0.45 },
 	Elevator = { id = "rbxasset://sounds/action_falling.mp3", speed = 1.3, volume = 0.25, maxLength = 1.2 },
@@ -3084,7 +3482,7 @@ return AudioController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="29">
+          <Item class="ModuleScript" referent="32">
             <Properties>
               <string name="Name">CameraController</string>
               <string name="Source"><![CDATA[--!strict
@@ -3278,7 +3676,292 @@ return CameraController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="30">
+          <Item class="ModuleScript" referent="33">
+            <Properties>
+              <string name="Name">HomePanels</string>
+              <string name="Source"><![CDATA[--!strict
+-- The two home screens: Neighbor Net (deliver requests) and the Kitchenette (cook jars).
+-- Opened by the "TerminalPrompt" / "KitchenPrompt" prompts, closed with ✕ or by walking
+-- away. The server validates every button press (HomeService).
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Palette = require(Shared.Palette)
+local ItemsModule = require(Shared.Items)
+local Neighbors = require(Shared.Neighbors)
+
+local HomePanels = {}
+
+local player = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("HomeAction") :: RemoteEvent
+
+local function make(className: string, props: { [string]: any }, parent: Instance?): any
+	local inst = Instance.new(className :: any)
+	for key, value in props do
+		(inst :: any)[key] = value
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+
+local function round(inst: Instance, radius: number)
+	make("UICorner", { CornerRadius = UDim.new(0, radius) }, inst)
+end
+
+local function count(id: string): number
+	return (player:GetAttribute(`Inv_{id}`) :: number?) or 0
+end
+
+local function decode(attr: string): any
+	local raw = player:GetAttribute(attr)
+	if typeof(raw) ~= "string" then
+		return {}
+	end
+	local ok, value = pcall(HttpService.JSONDecode, HttpService, raw)
+	return if ok then value else {}
+end
+
+local function hearts(n: number): string
+	local shown = math.min(n, 5)
+	return string.rep("♥", shown) .. string.rep("♡", 5 - shown) .. (if n > 5 then ` +{n - 5}` else "")
+end
+
+local BLURBS: { [string]: string } = {}
+local FLOORS: { [string]: string } = {}
+for _, n in Neighbors do
+	BLURBS[n.Name] = n.Blurb
+	FLOORS[n.Name] = n.Floor
+end
+
+function HomePanels.start()
+	local gui = make(
+		"ScreenGui",
+		{ Name = "HomePanels", ResetOnSpawn = false, Enabled = false },
+		player:WaitForChild("PlayerGui")
+	)
+	local panel = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(460, 400),
+		BackgroundColor3 = Palette.Ink,
+		BackgroundTransparency = 0.05,
+	}, gui)
+	round(panel, 22)
+	local stroke = make("UIStroke", { Thickness = 2, Color = Palette.NeonCyan }, panel)
+	local scale = make("UIScale", { Scale = 1 }, panel)
+	make("UISizeConstraint", { MaxSize = Vector2.new(460, 400) }, panel)
+
+	local title = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(20, 12),
+		Size = UDim2.new(1, -70, 0, 34),
+		Font = Enum.Font.Michroma,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Palette.NeonCyan,
+	}, panel)
+	local close = make("TextButton", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 12),
+		Size = UDim2.fromOffset(34, 34),
+		BackgroundColor3 = Palette.Violet,
+		Text = "✕",
+		TextColor3 = Palette.Cream,
+		Font = Enum.Font.FredokaOne,
+		TextSize = 20,
+	}, panel)
+	round(close, 17)
+
+	local list = make("ScrollingFrame", {
+		Position = UDim2.fromOffset(14, 58),
+		Size = UDim2.new(1, -28, 1, -72),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+	}, panel)
+	make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+
+	local mode: string? = nil
+	local anchor: BasePart? = nil
+
+	local function card(
+		order: number,
+		heading: string,
+		sub: string,
+		detail: string,
+		button: string,
+		ready: boolean,
+		accent: Color3,
+		onClick: () -> ()
+	)
+		local c = make(
+			"Frame",
+			{ LayoutOrder = order, Size = UDim2.new(1, -6, 0, 92), BackgroundColor3 = Palette.Indigo },
+			list
+		)
+		round(c, 14)
+		make("UIStroke", { Color = accent, Thickness = 1.5, Transparency = 0.3 }, c)
+		local function line(y: number, h: number, text: string, color: Color3, font: Enum.Font)
+			make("TextLabel", {
+				BackgroundTransparency = 1,
+				Position = UDim2.fromOffset(14, y),
+				Size = UDim2.new(1, -140, 0, h),
+				Text = text,
+				TextColor3 = color,
+				Font = font,
+				TextScaled = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}, c)
+		end
+		line(8, 24, heading, Palette.Cream, Enum.Font.FredokaOne)
+		line(34, 16, sub, Palette.Lilac, Enum.Font.FredokaOne)
+		line(56, 26, detail, accent, Enum.Font.FredokaOne)
+		local b = make("TextButton", {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -12, 0.5, 0),
+			Size = UDim2.fromOffset(108, 40),
+			BackgroundColor3 = if ready then accent else Palette.Violet,
+			AutoButtonColor = ready,
+			Text = button,
+			TextColor3 = if ready then Palette.Ink else Palette.Concrete,
+			Font = Enum.Font.FredokaOne,
+			TextSize = 20,
+		}, c)
+		round(b, 20)
+		b.Activated:Connect(function()
+			local s = make("UIScale", { Scale = 0.85 }, b)
+			TweenService
+				:Create(s, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+				:Play()
+			onClick()
+		end)
+	end
+
+	local function render()
+		for _, child in list:GetChildren() do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+		if mode == "orders" then
+			title.Text = "NEIGHBOR NET"
+			stroke.Color = Palette.NeonCyan
+			local friends = decode("Friends")
+			for i, order in decode("Orders") do
+				local item = ItemsModule.Items[order.Item]
+				if item then
+					local have = count(order.Item)
+					card(
+						i,
+						`{order.Neighbor}  ·  {FLOORS[order.Neighbor] or ""}  {hearts(
+							friends[order.Neighbor] or 0
+						)}`,
+						BLURBS[order.Neighbor] or "",
+						`{order.Count}x {item.Name}  ({have}/{order.Count})  →  {order.Reward} cr`,
+						"Deliver",
+						have >= order.Count,
+						item.Color,
+						function()
+							remote:FireServer("deliver", order.Id)
+						end
+					)
+				end
+			end
+		elseif mode == "kitchen" then
+			title.Text = "KITCHENETTE"
+			stroke.Color = Palette.NeonAmber
+			for i, recipe in ItemsModule.HomeRecipes do
+				local makes = ItemsModule.Items[recipe.Makes]
+				local ready = true
+				for id, n in recipe.Needs do
+					if count(id) < n then
+						ready = false
+					end
+				end
+				card(
+					i,
+					`{recipe.Icon} {makes.Name}`,
+					`You have {count(recipe.Makes)}`,
+					ItemsModule.describeNeeds(recipe.Needs),
+					"Make",
+					ready,
+					makes.Color,
+					function()
+						remote:FireServer("cook", recipe.Id)
+					end
+				)
+			end
+		end
+	end
+
+	local function open(newMode: string, at: BasePart)
+		mode, anchor = newMode, at
+		render()
+		gui.Enabled = true
+		scale.Scale = 0.6
+		TweenService
+			:Create(
+				scale,
+				TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{ Scale = 1 }
+			)
+			:Play()
+	end
+
+	local function hide()
+		mode, anchor = nil, nil
+		gui.Enabled = false
+	end
+	close.Activated:Connect(hide)
+
+	ProximityPromptService.PromptTriggered:Connect(function(promptObj, who)
+		if who ~= player then
+			return
+		end
+		local parent = promptObj.Parent
+		if not (parent and parent:IsA("BasePart")) then
+			return
+		end
+		if promptObj.Name == "TerminalPrompt" then
+			open("orders", parent)
+		elseif promptObj.Name == "KitchenPrompt" then
+			open("kitchen", parent)
+		end
+	end)
+
+	-- Live refresh while open, and close when you walk away.
+	player.AttributeChanged:Connect(function(name)
+		if mode and (name == "Orders" or name == "Friends" or string.sub(name, 1, 4) == "Inv_") then
+			render()
+		end
+	end)
+	RunService.Heartbeat:Connect(function()
+		if not (mode and anchor) then
+			return
+		end
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not root or (root.Position - anchor.Position).Magnitude > 14 then
+			hide()
+		end
+	end)
+end
+
+return HomePanels
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="34">
             <Properties>
               <string name="Name">HudController</string>
               <string name="Source"><![CDATA[--!strict
@@ -3456,6 +4139,8 @@ function HudController.start()
 			local count = (player:GetAttribute(attr) :: number?) or 0
 			label.Text = `{item.Name}  {count}`
 			chip.BackgroundTransparency = if count > 0 then 0.15 else 0.5
+			-- Jars only show up once you've made some, so the bar stays short.
+			chip.Visible = not item.Jar or count > 0
 			bump(chip)
 		end
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
@@ -3542,7 +4227,7 @@ return HudController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="31">
+          <Item class="ModuleScript" referent="35">
             <Properties>
               <string name="Name">PlantVisuals</string>
               <string name="Source"><![CDATA[--!strict
@@ -3776,7 +4461,7 @@ return PlantVisuals
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="32">
+          <Item class="ModuleScript" referent="36">
             <Properties>
               <string name="Name">RainController</string>
               <string name="Source"><![CDATA[--!strict
@@ -3843,7 +4528,7 @@ return RainController
             </Properties>
           </Item>
         </Item>
-        <Item class="LocalScript" referent="33">
+        <Item class="LocalScript" referent="37">
           <Properties>
             <string name="Name">Main</string>
             <string name="Source"><![CDATA[--!strict
@@ -3858,6 +4543,7 @@ local controllers = {
 	require(Controllers:WaitForChild("HudController")),
 	require(Controllers:WaitForChild("RainController")),
 	require(Controllers:WaitForChild("AudioController")),
+	require(Controllers:WaitForChild("HomePanels")),
 }
 
 for _, controller in controllers do

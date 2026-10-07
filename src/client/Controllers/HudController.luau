@@ -173,6 +173,8 @@ function HudController.start()
 			local count = (player:GetAttribute(attr) :: number?) or 0
 			label.Text = `{item.Name}  {count}`
 			chip.BackgroundTransparency = if count > 0 then 0.15 else 0.5
+			-- Jars only show up once you've made some, so the bar stays short.
+			chip.Visible = not item.Jar or count > 0
 			bump(chip)
 		end
 		player:GetAttributeChangedSignal(attr):Connect(refresh)

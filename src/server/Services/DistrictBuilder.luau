@@ -24,6 +24,16 @@ export type District = {
 	Planters: { Model },
 	RoboCat: Model,
 	Elevators: { Up: BasePart, Down: BasePart, HomeArrival: CFrame, StreetArrival: CFrame },
+	Terminal: BasePart,
+	Kitchen: BasePart,
+}
+
+type Apartment = {
+	Planters: { Model },
+	Down: BasePart,
+	HomeArrival: CFrame,
+	Terminal: BasePart,
+	Kitchen: BasePart,
 }
 
 local SIDEWALK_Y = 0.6
@@ -824,7 +834,7 @@ end
 -- Home: a small apartment on top of the tower behind the stall, Tiny Eden style. Inside is
 -- warm, cluttered and green; the big window looks down onto the neon street. The balcony
 -- and windowsill hold the player's own pots.
-local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
+local function buildApartment(root: Model): Apartment
 	local home = make("Model", { Name = "Apartment" }, root)
 	local y0 = HOME_Y
 	local x0, x1, zFront, zBack = -9, 9, 22, 34
@@ -1009,13 +1019,45 @@ local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
 	part(home, "Pillow", Vector3.new(3, 0.6, 1.4), CFrame.new(6, y0 + 2.7, cz + 4.6), Palette.Sky)
 	-- Kitchenette with a fridge that hums.
 	part(home, "Counter", Vector3.new(6, 3.2, 2.2), CFrame.new(-4.5, y0 + 1.6, zBack - 1.4), Palette.Mint)
-	part(
+	local counterTop = part(
 		home,
 		"CounterTop",
 		Vector3.new(6.2, 0.3, 2.4),
 		CFrame.new(-4.5, y0 + 3.35, zBack - 1.4),
 		Palette.Cream
 	)
+	prompt(counterTop, "Cook", "Kitchenette", { Name = "KitchenPrompt", MaxActivationDistance = 8 })
+
+	-- Neighbor Net: a little wall terminal where the building posts requests.
+	local terminal = part(
+		home,
+		"NeighborNet",
+		Vector3.new(0.3, 2.4, 3.6),
+		CFrame.new(x0 + 0.75, y0 + 4.5, 28.5),
+		Palette.Ink,
+		{ CastShadow = false }
+	)
+	local screen = make("SurfaceGui", {
+		Face = Enum.NormalId.Right,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 50,
+		LightInfluence = 0,
+		Brightness = LightCfg.SignTextBrightness,
+	}, terminal)
+	make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Palette.Indigo,
+		Text = "NEIGHBOR NET\n♥ requests ♥",
+		TextColor3 = Palette.NeonCyan,
+		TextScaled = true,
+		Font = Enum.Font.Michroma,
+	}, screen)
+	make(
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Right, Color = Palette.NeonCyan, Range = 6, Brightness = 0.5 },
+		terminal
+	)
+	prompt(terminal, "Check requests", "Neighbor Net", { Name = "TerminalPrompt", MaxActivationDistance = 8 })
 	local fridge =
 		part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
 	neon(
@@ -1077,7 +1119,13 @@ local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
 	)
 	local homeArrival = CFrame.lookAt(Vector3.new(2, y0 + 3, 26), Vector3.new(2, y0 + 3, zFront))
 
-	return planters, down, homeArrival
+	return {
+		Planters = planters,
+		Down = down,
+		HomeArrival = homeArrival,
+		Terminal = terminal,
+		Kitchen = counterTop,
+	}
 end
 
 local function buildElevatorUp(root: Model): (BasePart, CFrame)
@@ -1122,8 +1170,9 @@ function DistrictBuilder.build(): District
 	local vending = buildVending(root)
 	local cat = buildRoboCat(root)
 	local planters = buildGarden(root)
-	local homePlanters, elevatorDown, homeArrival = buildApartment(root)
-	for _, planter in homePlanters do
+	local apartment = buildApartment(root)
+	local elevatorDown, homeArrival = apartment.Down, apartment.HomeArrival
+	for _, planter in apartment.Planters do
 		table.insert(planters, planter)
 	end
 	local elevatorUp, streetArrival = buildElevatorUp(root)
@@ -1153,6 +1202,8 @@ function DistrictBuilder.build(): District
 			HomeArrival = homeArrival,
 			StreetArrival = streetArrival,
 		},
+		Terminal = apartment.Terminal,
+		Kitchen = apartment.Kitchen,
 	}
 end
 

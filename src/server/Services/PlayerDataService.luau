@@ -1,18 +1,24 @@
 --!strict
 -- Owns each player's credits and inventory. Saves to DataStore and mirrors values onto
--- player attributes ("Credits", "Inv_<ItemId>") so the client HUD can read them for free.
+-- player attributes ("Credits", "Inv_<ItemId>", plus JSON "Orders"/"Friends") so the client
+-- UI can read them for free.
 
 local DataStoreService = game:GetService("DataStoreService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local ItemsModule = require(Shared.Items)
 
+export type Order = { Id: string, Neighbor: string, Item: string, Count: number, Reward: number }
+
 export type Profile = {
 	Credits: number,
 	Inventory: { [string]: number },
 	Stats: { Served: number, Harvested: number },
+	Orders: { Order },
+	Friends: { [string]: number }, -- neighbor name -> hearts
 }
 
 local PlayerDataService = {}
@@ -42,6 +48,8 @@ local function defaultProfile(): Profile
 		Credits = Config.StartingCredits,
 		Inventory = inventory,
 		Stats = { Served = 0, Harvested = 0 },
+		Orders = {},
+		Friends = {},
 	}
 end
 
@@ -64,6 +72,27 @@ local function reconcile(saved: any): Profile
 		profile.Stats.Served = tonumber(saved.Stats.Served) or 0
 		profile.Stats.Harvested = tonumber(saved.Stats.Harvested) or 0
 	end
+	if typeof(saved.Orders) == "table" then
+		for _, order in saved.Orders do
+			if
+				typeof(order) == "table"
+				and typeof(order.Id) == "string"
+				and ItemsModule.Items[order.Item]
+				and typeof(order.Count) == "number"
+				and typeof(order.Reward) == "number"
+				and typeof(order.Neighbor) == "string"
+			then
+				table.insert(profile.Orders, order)
+			end
+		end
+	end
+	if typeof(saved.Friends) == "table" then
+		for name, hearts in saved.Friends do
+			if typeof(name) == "string" and typeof(hearts) == "number" then
+				profile.Friends[name] = hearts
+			end
+		end
+	end
 	return profile
 end
 
@@ -76,7 +105,11 @@ local function mirror(player: Player, profile: Profile)
 	for id, count in profile.Inventory do
 		player:SetAttribute(`Inv_{id}`, count)
 	end
+	player:SetAttribute("Orders", HttpService:JSONEncode(profile.Orders))
+	player:SetAttribute("Friends", HttpService:JSONEncode(profile.Friends))
 end
+
+local loadedCallbacks: { (Player, Profile) -> () } = {}
 
 local function load(player: Player)
 	local saved = nil
@@ -103,6 +136,9 @@ local function load(player: Player)
 	profiles[player] = profile
 	canSave[player] = loaded and store ~= nil
 	mirror(player, profile)
+	for _, callback in loadedCallbacks do
+		task.spawn(callback, player, profile)
+	end
 end
 
 local function save(player: Player)
@@ -181,6 +217,22 @@ function PlayerDataService.bumpStat(player: Player, stat: "Served" | "Harvested"
 	local profile = profiles[player]
 	if profile then
 		profile.Stats[stat] += 1
+	end
+end
+
+-- Call after changing profile.Orders / profile.Friends directly, to push them to the client.
+function PlayerDataService.sync(player: Player)
+	local profile = profiles[player]
+	if profile then
+		mirror(player, profile)
+	end
+end
+
+-- Runs once per player as soon as their profile is ready (including players already loaded).
+function PlayerDataService.onLoaded(callback: (Player, Profile) -> ())
+	table.insert(loadedCallbacks, callback)
+	for player, profile in profiles do
+		task.spawn(callback, player, profile)
 	end
 end
 

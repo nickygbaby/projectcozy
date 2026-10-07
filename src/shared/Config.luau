@@ -18,6 +18,15 @@ local Config = {
 	GrowSeconds = 45, -- total watered time from seed to ripe
 	HarvestYield = 2,
 
+	-- Neighbor Net orders (home)
+	Orders = {
+		Slots = 3, -- open requests at once
+		RewardMultiplier = 1.4, -- reward = item value x count x this
+		HeartBonus = 0.05, -- +5% reward per heart with that neighbor...
+		MaxBonusHearts = 10, -- ...up to +50%
+		RefillSeconds = 4,
+	},
+
 	-- Noodle stall
 	CustomerSpawnInterval = { Min = 6, Max = 14 },
 	CustomerPatienceSeconds = 75,
@@ -90,6 +99,7 @@ local Config = {
 		Coin = "",
 		Water = "",
 		Harvest = "",
+		Cook = "",
 		Elevator = "",
 		Purr = "",
 		Nope = "",

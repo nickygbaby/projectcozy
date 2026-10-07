@@ -1,0 +1,148 @@
+{
+ "remotes": [
+  "Toast",
+  "Pop",
+  "Sfx",
+  "HomeAction"
+ ],
+ "files": [
+  {
+   "src": "src/shared/Config.luau",
+   "parent": "ReplicatedStorage/Shared",
+   "name": "Config",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/shared/Items.luau",
+   "parent": "ReplicatedStorage/Shared",
+   "name": "Items",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/shared/Juice.luau",
+   "parent": "ReplicatedStorage/Shared",
+   "name": "Juice",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/shared/Neighbors.luau",
+   "parent": "ReplicatedStorage/Shared",
+   "name": "Neighbors",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/shared/Palette.luau",
+   "parent": "ReplicatedStorage/Shared",
+   "name": "Palette",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/shared/Zones.luau",
+   "parent": "ReplicatedStorage/Shared",
+   "name": "Zones",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Main.server.luau",
+   "parent": "ServerScriptService/Server",
+   "name": "Main",
+   "class": "Script"
+  },
+  {
+   "src": "src/server/Services/AtmosphereService.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "AtmosphereService",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/DistrictBuilder.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "DistrictBuilder",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/GardenService.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "GardenService",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/HomeService.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "HomeService",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/InteractionsService.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "InteractionsService",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/Notify.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "Notify",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/PlayerDataService.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "PlayerDataService",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/server/Services/StallService.luau",
+   "parent": "ServerScriptService/Server/Services",
+   "name": "StallService",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Main.client.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client",
+   "name": "Main",
+   "class": "LocalScript"
+  },
+  {
+   "src": "src/client/Controllers/AmbientController.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "AmbientController",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Controllers/AudioController.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "AudioController",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Controllers/CameraController.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "CameraController",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Controllers/HomePanels.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "HomePanels",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Controllers/HudController.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "HudController",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Controllers/PlantVisuals.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "PlantVisuals",
+   "class": "ModuleScript"
+  },
+  {
+   "src": "src/client/Controllers/RainController.luau",
+   "parent": "StarterPlayer/StarterPlayerScripts/Client/Controllers",
+   "name": "RainController",
+   "class": "ModuleScript"
+  }
+ ]
+}

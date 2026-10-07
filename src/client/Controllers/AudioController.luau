@@ -85,6 +85,7 @@ local BUILTIN: { [string]: Spec } = {
 	Pop = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 1.8, volume = 0.5 },
 	Water = { id = "rbxasset://sounds/impact_water.mp3", speed = 1.3, volume = 0.3 },
 	Harvest = { id = "rbxasset://sounds/action_get_up.mp3", speed = 1.5, volume = 0.5 },
+	Cook = { id = "rbxasset://sounds/impact_water.mp3", speed = 0.8, volume = 0.3 },
 	Coin = { id = "rbxasset://sounds/action_jump.mp3", speed = 2.2, volume = 0.3 },
 	Nope = { id = "rbxasset://sounds/action_jump_land.mp3", speed = 0.7, volume = 0.45 },
 	Elevator = { id = "rbxasset://sounds/action_falling.mp3", speed = 1.3, volume = 0.25, maxLength = 1.2 },

@@ -75,7 +75,7 @@ end
 
 local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
-for _, name in { "Toast", "Pop", "Sfx" } do
+for _, name in { "Toast", "Pop", "Sfx", "HomeAction" } do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes

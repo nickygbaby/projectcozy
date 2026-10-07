@@ -16,6 +16,9 @@
         },
         "Sfx": {
           "$className": "RemoteEvent"
+        },
+        "HomeAction": {
+          "$className": "RemoteEvent"
         }
       }
     },

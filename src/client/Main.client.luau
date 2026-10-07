@@ -10,6 +10,7 @@ local controllers = {
 	require(Controllers:WaitForChild("HudController")),
 	require(Controllers:WaitForChild("RainController")),
 	require(Controllers:WaitForChild("AudioController")),
+	require(Controllers:WaitForChild("HomePanels")),
 }
 
 for _, controller in controllers do
