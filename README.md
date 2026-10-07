@@ -7,7 +7,18 @@ street, grow glowing ingredients on the roof and pet the robo-cat.
 - 📖 [Game design](docs/GAME_DESIGN.md): pitch, pillars, core loop, roadmap
 - 🎨 [Art & animation direction](docs/ART_DIRECTION.md): shapes, palette, lighting, the "everything bounces" rules
 
-## Getting it into Roblox Studio
+## Quick start: copy/paste (no tools needed)
+
+1. Open a **new Baseplate** in Studio and delete the `Baseplate` part in Workspace.
+2. Open **View → Command Bar**.
+3. Copy all of [`studio/InstallProjectCozy.lua`](studio/InstallProjectCozy.lua), paste it into
+   the Command Bar and press **Enter**.
+4. Press **Play**.
+
+It creates every script, module and remote in the right place, and it's safe to run again.
+After changing anything in `src/`, rebuild it with `python3 studio/build_installer.py .`.
+
+## Getting it into Roblox Studio with Rojo (for ongoing development)
 
 The project uses [Rojo](https://rojo.space) to sync code from this repo into Studio.
 

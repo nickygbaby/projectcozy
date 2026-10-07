@@ -1,0 +1,2989 @@
+-- ===========================================================================
+-- PROJECT COZY: one-paste installer for Roblox Studio
+-- HOW TO USE:
+--   1. Open a new Baseplate in Studio and delete the "Baseplate" part in Workspace.
+--   2. View tab -> Command Bar.
+--   3. Paste this ENTIRE file into the Command Bar and press Enter.
+--   4. Press Play.
+-- Safe to run again: it replaces the previous install.
+-- GENERATED from src/ by studio/build_installer.py. Do not edit by hand.
+-- ===========================================================================
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local StarterPlayer = game:GetService("StarterPlayer")
+local Lighting = game:GetService("Lighting")
+
+-- Clean out any previous install
+for _, pair in {
+	{ ReplicatedStorage, "Shared" },
+	{ ReplicatedStorage, "Remotes" },
+	{ ServerScriptService, "Server" },
+	{ StarterPlayer.StarterPlayerScripts, "Client" },
+} do
+	local old = pair[1]:FindFirstChild(pair[2])
+	if old then
+		old:Destroy()
+	end
+end
+
+local function folder(path: string): Instance
+	local node: Instance = game
+	for _, name in string.split(path, "/") do
+		local child = node:FindFirstChild(name)
+		if not child then
+			if node == game then
+				child = game:GetService(name)
+			else
+				child = Instance.new("Folder")
+				child.Name = name
+				child.Parent = node
+			end
+		end
+		node = child
+	end
+	return node
+end
+
+local function install(path: string, name: string, className: string, source: string)
+	local s = Instance.new(className)
+	s.Name = name
+	s.Source = source
+	s.Parent = folder(path)
+end
+
+local remotes = Instance.new("Folder")
+remotes.Name = "Remotes"
+for _, name in { "Toast", "Pop" } do
+	local r = Instance.new("RemoteEvent")
+	r.Name = name
+	r.Parent = remotes
+end
+remotes.Parent = ReplicatedStorage
+
+pcall(function()
+	Lighting.Technology = Enum.Technology.Future
+end)
+
+install("ReplicatedStorage/Shared", "Config", "ModuleScript", [=[
+--!strict
+-- Every tunable number lives here so designers can tweak feel without touching systems.
+
+local Config = {
+	-- Time of day. The city spends most of its time at night: daytime runs DayRushMultiplier
+	-- times faster than night, so the "real" vibe is neon-after-dark.
+	DayLengthMinutes = 20,
+	StartClockTime = 20.5,
+	DayRushMultiplier = 3,
+
+	-- Economy
+	StartingCredits = 20,
+	StartingInventory = { Noodles = 2 },
+	NoodleBrickPrice = 4,
+
+	-- Garden
+	GrowSeconds = 45, -- seed -> ripe
+	HarvestYield = 2,
+
+	-- Noodle stall
+	CustomerSpawnInterval = { Min = 6, Max = 14 },
+	CustomerPatienceSeconds = 75,
+	MaxTipFraction = 0.5, -- served instantly = +50% tip, served at the last second = +0%
+
+	-- Saving
+	DataStoreName = "ProjectCozy_v1",
+	AutosaveSeconds = 120,
+
+	-- Cozy camera (Tiny Eden style diorama view)
+	Camera = {
+		FieldOfView = 32,
+		Pitch = 55, -- degrees looking down
+		StartYaw = 200, -- from the south side, looking north at the stall
+		Distance = 70,
+		MinDistance = 35,
+		MaxDistance = 120,
+		RotateStep = 45,
+		FollowSharpness = 8,
+		RotateSharpness = 10,
+	},
+
+	-- Sound asset ids. Left blank on purpose: drop in ids from your own uploads / Creator Store.
+	Sounds = {
+		Rain = "",
+		CityHum = "",
+		Pop = "",
+		Coin = "",
+	},
+}
+
+return Config
+]=])
+
+install("ReplicatedStorage/Shared", "Palette", "ModuleScript", [=[
+--!strict
+-- The Lantern Row palette: soft "toybox" colors for anything you touch, hot neon for
+-- anything that glows. Rule of thumb: cozy colors on surfaces, neon only on light sources.
+
+local function hex(code: string): Color3
+	return Color3.fromHex(code)
+end
+
+local Palette = {
+	-- Night sky & city mass
+	Ink = hex("#0f0c1f"),
+	Indigo = hex("#1b1538"),
+	Violet = hex("#2e2257"),
+	Asphalt = hex("#221d36"),
+	Concrete = hex("#3c3558"),
+	Brick = hex("#5a3f63"),
+
+	-- Toybox (cozy, matte, rounded)
+	Cream = hex("#fff1d6"),
+	Peach = hex("#ffb59e"),
+	Coral = hex("#ff8a80"),
+	Mint = hex("#9ff2c4"),
+	Sky = hex("#9fd8ff"),
+	Butter = hex("#ffe38a"),
+	Lilac = hex("#c7b3ff"),
+	Wood = hex("#8a5a44"),
+	Soil = hex("#3b2a2a"),
+	Leaf = hex("#5fd38a"),
+
+	-- Neon (emissive only)
+	NeonPink = hex("#ff4fa3"),
+	NeonCyan = hex("#3ff0ff"),
+	NeonLime = hex("#b6ff5a"),
+	NeonAmber = hex("#ffb347"),
+	NeonPurple = hex("#a970ff"),
+	NeonRed = hex("#ff3b5c"),
+}
+
+Palette.NeonSet = {
+	Palette.NeonPink,
+	Palette.NeonCyan,
+	Palette.NeonLime,
+	Palette.NeonAmber,
+	Palette.NeonPurple,
+}
+
+Palette.ToySet = {
+	Palette.Cream,
+	Palette.Peach,
+	Palette.Coral,
+	Palette.Mint,
+	Palette.Sky,
+	Palette.Butter,
+	Palette.Lilac,
+}
+
+return Palette
+]=])
+
+install("ReplicatedStorage/Shared", "Items", "ModuleScript", [=[
+--!strict
+-- Ingredients and the dishes they make.
+
+local Palette = require(script.Parent.Palette)
+
+export type Item = {
+	Id: string,
+	Name: string,
+	Color: Color3,
+	Grown: boolean,
+}
+
+export type Recipe = {
+	Id: string,
+	Name: string,
+	Icon: string,
+	Price: number,
+	Needs: { [string]: number },
+}
+
+local Items: { [string]: Item } = {
+	Noodles = { Id = "Noodles", Name = "Noodle Brick", Color = Palette.Butter, Grown = false },
+	Scallion = { Id = "Scallion", Name = "Synth Scallion", Color = Palette.NeonLime, Grown = true },
+	Glowshroom = { Id = "Glowshroom", Name = "Glowshroom", Color = Palette.NeonCyan, Grown = true },
+	EmberChili = { Id = "EmberChili", Name = "Ember Chili", Color = Palette.NeonRed, Grown = true },
+}
+
+-- Display order for UI
+local ItemOrder = { "Noodles", "Scallion", "Glowshroom", "EmberChili" }
+
+local Recipes: { [string]: Recipe } = {
+	NeonShoyu = {
+		Id = "NeonShoyu",
+		Name = "Neon Shoyu",
+		Icon = "🍜",
+		Price = 18,
+		Needs = { Noodles = 1, Scallion = 1 },
+	},
+	GlowMiso = {
+		Id = "GlowMiso",
+		Name = "Glow Miso",
+		Icon = "🍄",
+		Price = 24,
+		Needs = { Noodles = 1, Glowshroom = 1 },
+	},
+	ChromeChili = {
+		Id = "ChromeChili",
+		Name = "Chrome Chili",
+		Icon = "🌶️",
+		Price = 40,
+		Needs = { Noodles = 1, Scallion = 1, EmberChili = 1 },
+	},
+}
+
+local RecipeOrder = { "NeonShoyu", "GlowMiso", "ChromeChili" }
+
+local function describeNeeds(needs: { [string]: number }): string
+	local parts = {}
+	for _, id in ItemOrder do
+		local count = needs[id]
+		if count then
+			table.insert(parts, `{count}x {Items[id].Name}`)
+		end
+	end
+	return table.concat(parts, ", ")
+end
+
+return {
+	Items = Items,
+	ItemOrder = ItemOrder,
+	Recipes = Recipes,
+	RecipeOrder = RecipeOrder,
+	describeNeeds = describeNeeds,
+}
+]=])
+
+install("ReplicatedStorage/Shared", "Juice", "ModuleScript", [=[
+--!strict
+-- Juice: the springy squash-and-stretch that makes the world feel like a toy.
+-- Client-side only. The server owns state; the client makes it bounce.
+--
+--   Juice.squash(part, 1)   -- jelly wobble on a single part, base stays planted
+--   Juice.pop(model, 1)     -- uniform springy scale bump on a model (or part)
+--   Juice.popIn(model)      -- grow from nothing with an overshoot
+--   Juice.popOut(model)     -- shrink away, then call onDone
+--   Juice.hop(model, 3)     -- little happy jump
+
+local RunService = game:GetService("RunService")
+
+-- Damped spring --------------------------------------------------------------
+
+export type Spring = {
+	x: number,
+	v: number,
+	target: number,
+	stiffness: number,
+	damping: number,
+}
+
+local function newSpring(stiffness: number, damping: number): Spring
+	return { x = 0, v = 0, target = 0, stiffness = stiffness, damping = damping }
+end
+
+local MAX_STEP = 1 / 120
+
+local function stepSpring(s: Spring, dt: number)
+	-- Fixed substeps keep stiff springs stable on low frame rates.
+	while dt > 0 do
+		local h = math.min(dt, MAX_STEP)
+		local force = -s.stiffness * (s.x - s.target) - s.damping * s.v
+		s.v += force * h
+		s.x += s.v * h
+		dt -= h
+	end
+end
+
+local function isResting(s: Spring): boolean
+	return math.abs(s.x - s.target) < 1e-3 and math.abs(s.v) < 1e-3
+end
+
+-- Feel presets. Lower damping = more wobble.
+local JELLY = { stiffness = 320, damping = 11 }
+local BOUNCE = { stiffness = 260, damping = 14 }
+
+-- Active animations ----------------------------------------------------------
+
+type Anim = {
+	spring: Spring,
+	apply: (x: number) -> (),
+	finish: () -> (),
+}
+
+local active: { [Instance]: Anim } = {}
+local connection: RBXScriptConnection? = nil
+
+local function ensureLoop()
+	if connection then
+		return
+	end
+	connection = RunService.Heartbeat:Connect(function(dt)
+		for target, anim in active do
+			if target.Parent == nil then
+				active[target] = nil
+				continue
+			end
+			stepSpring(anim.spring, dt)
+			if isResting(anim.spring) then
+				active[target] = nil
+				anim.finish()
+			else
+				anim.apply(anim.spring.x)
+			end
+		end
+		if next(active) == nil and connection then
+			connection:Disconnect()
+			connection = nil
+		end
+	end)
+end
+
+local Juice = {}
+
+-- Part squash: volume-ish preserving. x > 0 = squashed flat, x < 0 = stretched tall.
+local partRest: { [BasePart]: { size: Vector3, cframe: CFrame } } = setmetatable({}, { __mode = "k" }) :: any
+
+function Juice.squash(part: BasePart, strength: number?)
+	local existing = active[part]
+	if existing then
+		existing.spring.v += 6 * (strength or 1)
+		return
+	end
+
+	local rest = { size = part.Size, cframe = part.CFrame }
+	partRest[part] = rest
+
+	local spring = newSpring(JELLY.stiffness, JELLY.damping)
+	spring.v = 6 * (strength or 1)
+
+	active[part] = {
+		spring = spring,
+		apply = function(x)
+			local squash = math.clamp(x * 0.35, -0.4, 0.4)
+			local y = rest.size.Y * (1 - squash)
+			local xz = 1 + squash * 0.5
+			part.Size = Vector3.new(rest.size.X * xz, y, rest.size.Z * xz)
+			-- Keep the bottom face planted so objects squish into the ground, not the air.
+			part.CFrame = rest.cframe * CFrame.new(0, (y - rest.size.Y) / 2, 0)
+		end,
+		finish = function()
+			part.Size = rest.size
+			part.CFrame = rest.cframe
+			partRest[part] = nil
+		end,
+	}
+	ensureLoop()
+end
+
+-- Model scale animations ----------------------------------------------------
+
+local function scaleAnim(model: Model, startX: number, velocity: number, preset, onDone: (() -> ())?)
+	local existing = active[model]
+	if existing then
+		-- Already animating: finish snaps back to its base scale first.
+		existing.finish()
+		active[model] = nil
+	end
+	local base = model:GetScale()
+
+	local spring = newSpring(preset.stiffness, preset.damping)
+	spring.x = startX
+	spring.v = velocity
+
+	local function apply(x: number)
+		model:ScaleTo(base * math.max(0.02, 1 + x))
+	end
+	apply(startX)
+
+	active[model] = {
+		spring = spring,
+		apply = apply,
+		finish = function()
+			model:ScaleTo(base)
+			if onDone then
+				onDone()
+			end
+		end,
+	}
+	ensureLoop()
+end
+
+function Juice.pop(target: Instance, strength: number?)
+	if target:IsA("BasePart") then
+		Juice.squash(target, strength)
+	elseif target:IsA("Model") then
+		scaleAnim(target, 0, 2.5 * (strength or 1), JELLY)
+	end
+end
+
+function Juice.popIn(model: Model)
+	scaleAnim(model, -0.98, 0, BOUNCE)
+end
+
+function Juice.popOut(model: Model, onDone: (() -> ())?)
+	-- Spring toward "almost nothing" with a little anticipation bump first.
+	local existing = active[model]
+	if existing then
+		existing.finish()
+		active[model] = nil
+	end
+	local base = model:GetScale()
+	local spring = newSpring(BOUNCE.stiffness, BOUNCE.damping)
+	spring.v = 2
+	spring.target = -0.98
+	active[model] = {
+		spring = spring,
+		apply = function(x)
+			model:ScaleTo(base * math.max(0.02, 1 + x))
+		end,
+		finish = function()
+			if onDone then
+				onDone()
+			end
+		end,
+	}
+	ensureLoop()
+end
+
+function Juice.hop(model: Model, height: number?)
+	local h = height or 3
+	local existing = active[model]
+	if existing then
+		existing.finish()
+		active[model] = nil
+	end
+	local start = model:GetPivot()
+	local spring = newSpring(BOUNCE.stiffness * 0.5, BOUNCE.damping * 0.6)
+	spring.v = h * 9
+	active[model] = {
+		spring = spring,
+		apply = function(x)
+			model:PivotTo(start + Vector3.new(0, math.max(0, x), 0))
+		end,
+		finish = function()
+			model:PivotTo(start)
+		end,
+	}
+	ensureLoop()
+end
+
+Juice.newSpring = newSpring
+Juice.stepSpring = stepSpring
+
+return Juice
+]=])
+
+install("ServerScriptService/Server", "Main", "Script", [=[
+--!strict
+-- Server entry point. The server owns state (data, timers, prompts); clients own visuals.
+
+local Services = script.Parent.Services
+
+local AtmosphereService = require(Services.AtmosphereService)
+local DistrictBuilder = require(Services.DistrictBuilder)
+local PlayerDataService = require(Services.PlayerDataService)
+local GardenService = require(Services.GardenService)
+local StallService = require(Services.StallService)
+local InteractionsService = require(Services.InteractionsService)
+
+AtmosphereService.start()
+PlayerDataService.start()
+
+local district = DistrictBuilder.build()
+GardenService.start(district.Planters)
+StallService.start(district.CustomerSpots, district.StallPot)
+InteractionsService.start(district.Vending, district.RoboCat)
+
+print("[ProjectCozy] Lantern Row is open. Stay cozy, choom.")
+]=])
+
+install("ServerScriptService/Server/Services", "AtmosphereService", "ModuleScript", [=[
+--!strict
+-- Lighting, haze and the day/night cycle. The look we want: a soft-focus toy diorama
+-- (Tiny Eden) lit by smoggy neon (Cyberpunk 2077 / Nivalis). Nights are long and purple,
+-- days are brief, hazy and a little sickly-teal.
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+type Key = {
+	t: number, -- ClockTime
+	ambient: Color3,
+	outdoor: Color3,
+	haze: Color3,
+	decay: Color3,
+	brightness: number,
+	density: number,
+}
+
+-- Keyframes around the clock. Interpolated with wraparound at 24h.
+local KEYS: { Key } = {
+	{
+		t = 2,
+		ambient = Color3.fromRGB(58, 40, 96),
+		outdoor = Color3.fromRGB(70, 48, 120),
+		haze = Color3.fromRGB(70, 40, 120),
+		decay = Color3.fromRGB(30, 20, 60),
+		brightness = 0.6,
+		density = 0.38,
+	},
+	{
+		t = 6,
+		ambient = Color3.fromRGB(110, 70, 110),
+		outdoor = Color3.fromRGB(170, 110, 140),
+		haze = Color3.fromRGB(255, 150, 170),
+		decay = Color3.fromRGB(120, 70, 120),
+		brightness = 1.6,
+		density = 0.34,
+	},
+	{
+		t = 12,
+		ambient = Color3.fromRGB(110, 120, 120),
+		outdoor = Color3.fromRGB(160, 170, 160),
+		haze = Color3.fromRGB(190, 220, 200),
+		decay = Color3.fromRGB(120, 140, 130),
+		brightness = 2.2,
+		density = 0.3,
+	},
+	{
+		t = 18,
+		ambient = Color3.fromRGB(120, 70, 100),
+		outdoor = Color3.fromRGB(190, 100, 130),
+		haze = Color3.fromRGB(255, 120, 150),
+		decay = Color3.fromRGB(110, 50, 110),
+		brightness = 1.4,
+		density = 0.34,
+	},
+	{
+		t = 21,
+		ambient = Color3.fromRGB(70, 48, 110),
+		outdoor = Color3.fromRGB(80, 58, 140),
+		haze = Color3.fromRGB(90, 50, 150),
+		decay = Color3.fromRGB(40, 25, 80),
+		brightness = 0.8,
+		density = 0.36,
+	},
+}
+
+local function sample(clock: number): Key
+	local n = #KEYS
+	for i = 1, n do
+		local a = KEYS[i]
+		local b = KEYS[i % n + 1]
+		local tb = if b.t <= a.t then b.t + 24 else b.t
+		local c = if clock < a.t then clock + 24 else clock
+		if c >= a.t and c < tb then
+			local alpha = (c - a.t) / (tb - a.t)
+			-- Smoothstep so transitions ease rather than snap at each key.
+			alpha = alpha * alpha * (3 - 2 * alpha)
+			return {
+				t = clock,
+				ambient = a.ambient:Lerp(b.ambient, alpha),
+				outdoor = a.outdoor:Lerp(b.outdoor, alpha),
+				haze = a.haze:Lerp(b.haze, alpha),
+				decay = a.decay:Lerp(b.decay, alpha),
+				brightness = a.brightness + (b.brightness - a.brightness) * alpha,
+				density = a.density + (b.density - a.density) * alpha,
+			}
+		end
+	end
+	return KEYS[1]
+end
+
+local function getOrCreate(className: string, name: string, parent: Instance): any
+	local existing = parent:FindFirstChild(name)
+	if existing and existing:IsA(className) then
+		return existing
+	end
+	local inst = Instance.new(className :: any)
+	inst.Name = name
+	inst.Parent = parent
+	return inst
+end
+
+local AtmosphereService = {}
+
+function AtmosphereService.start()
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 0.6
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.EnvironmentSpecularScale = 1
+	Lighting.ExposureCompensation = 0.1
+	Lighting.ClockTime = Config.StartClockTime
+
+	local atmosphere: Atmosphere = getOrCreate("Atmosphere", "CityHaze", Lighting)
+	atmosphere.Offset = 0.15
+	atmosphere.Glare = 0.4
+	atmosphere.Haze = 2.2
+
+	-- Bloom is what turns flat Neon parts into glowing signage.
+	local bloom: BloomEffect = getOrCreate("BloomEffect", "NeonBloom", Lighting)
+	bloom.Intensity = 1.2
+	bloom.Size = 32
+	bloom.Threshold = 0.85
+
+	-- Slightly lifted, saturated grade: soft toy colors, punchy neon.
+	local grade: ColorCorrectionEffect = getOrCreate("ColorCorrectionEffect", "CozyGrade", Lighting)
+	grade.Saturation = 0.18
+	grade.Contrast = 0.08
+	grade.Brightness = 0.02
+	grade.TintColor = Color3.fromRGB(255, 240, 250)
+
+	local secondsPerHour = (Config.DayLengthMinutes * 60) / 24
+	local accumulator = 0
+
+	RunService.Heartbeat:Connect(function(dt)
+		local clock = Lighting.ClockTime
+		local isDay = clock >= 7 and clock < 17.5
+		local rate = if isDay then Config.DayRushMultiplier else 1
+		Lighting.ClockTime = (clock + dt * rate / secondsPerHour) % 24
+
+		-- Lighting color properties replicate; no need to push them every frame.
+		accumulator += dt
+		if accumulator < 0.25 then
+			return
+		end
+		accumulator = 0
+
+		local k = sample(Lighting.ClockTime)
+		Lighting.Ambient = k.ambient
+		Lighting.OutdoorAmbient = k.outdoor
+		Lighting.Brightness = k.brightness
+		atmosphere.Color = k.haze
+		atmosphere.Decay = k.decay
+		atmosphere.Density = k.density
+	end)
+end
+
+return AtmosphereService
+]=])
+
+install("ServerScriptService/Server/Services", "DistrictBuilder", "ModuleScript", [=[
+--!strict
+-- Builds Lantern Row, the starter district, out of primitive parts so the game is playable
+-- the moment you sync it. This is a greybox: every piece here is meant to be swapped for
+-- chunky, bevelled art meshes later (see docs/ART_DIRECTION.md) while keeping the same
+-- names, tags and attributes that the gameplay services look for.
+--
+-- Layout (top-down, +Z is "north"):
+--
+--   [ buildings  | Lucky Byte Noodles | buildings ]   z  22..50
+--   [ sidewalk   vending  stall  cat              ]   z  12..22
+--   [ ============ wet neon street ============== ]   z -12..12
+--   [ sidewalk  stairs ->                          ]   z -22..-12
+--   [ buildings      | rooftop garden building    ]   z -50..-22
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Palette = require(Shared.Palette)
+
+export type District = {
+	Root: Model,
+	CustomerSpots: { CFrame },
+	StallPot: BasePart,
+	Vending: BasePart,
+	Planters: { Model },
+	RoboCat: Model,
+}
+
+local SIDEWALK_Y = 0.6
+local ROOF_Y = 10
+local rng = Random.new(2077)
+
+-- Helpers --------------------------------------------------------------------
+
+local function make(className: string, props: { [string]: any }, parent: Instance?): any
+	local inst = Instance.new(className :: any)
+	for key, value in props do
+		(inst :: any)[key] = value
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+
+local function part(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cframe: CFrame,
+	color: Color3,
+	props: { [string]: any }?
+): Part
+	local p = make("Part", {
+		Name = name,
+		Anchored = true,
+		Size = size,
+		CFrame = cframe,
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		TopSurface = Enum.SurfaceType.Smooth,
+		BottomSurface = Enum.SurfaceType.Smooth,
+	})
+	if props then
+		for key, value in props do
+			(p :: any)[key] = value
+		end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function neon(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cframe: CFrame,
+	color: Color3,
+	light: number?
+): Part
+	local p = part(parent, name, size, cframe, color, { Material = Enum.Material.Neon, CastShadow = false })
+	if light then
+		make("PointLight", { Color = color, Range = light, Brightness = 1.5, Shadows = false }, p)
+	end
+	return p
+end
+
+-- Cylinders in Roblox lie along X; this stands one upright.
+local UPRIGHT = CFrame.Angles(0, 0, math.rad(90))
+
+local function cylinder(
+	parent: Instance,
+	name: string,
+	height: number,
+	diameter: number,
+	position: Vector3,
+	color: Color3,
+	props: { [string]: any }?
+): Part
+	local merged: { [string]: any } = { Shape = Enum.PartType.Cylinder }
+	if props then
+		for key, value in props do
+			merged[key] = value
+		end
+	end
+	return part(
+		parent,
+		name,
+		Vector3.new(height, diameter, diameter),
+		CFrame.new(position) * UPRIGHT,
+		color,
+		merged
+	)
+end
+
+local function prompt(
+	parent: Instance,
+	action: string,
+	object: string,
+	props: { [string]: any }?
+): ProximityPrompt
+	local pp = make("ProximityPrompt", {
+		ActionText = action,
+		ObjectText = object,
+		HoldDuration = 0,
+		MaxActivationDistance = 10,
+		RequiresLineOfSight = false,
+	})
+	if props then
+		for key, value in props do
+			(pp :: any)[key] = value
+		end
+	end
+	pp.Parent = parent
+	return pp
+end
+
+-- A flat sign board with glowing text that also throws colored light on the street.
+-- `facing` is the world direction the text should face.
+local function sign(
+	parent: Instance,
+	text: string,
+	size: Vector2,
+	position: Vector3,
+	facing: Vector3,
+	color: Color3,
+	flicker: boolean?
+): Part
+	local cf = CFrame.lookAt(position, position + facing)
+	local board =
+		part(parent, "Sign", Vector3.new(size.X, size.Y, 0.4), cf, Palette.Ink, { CastShadow = false })
+	local gui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 40,
+		LightInfluence = 0,
+		Brightness = 2.5,
+	}, board)
+	local label = make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = color,
+		TextScaled = true,
+		Font = Enum.Font.Michroma,
+	}, gui)
+	make("UIStroke", { Color = color, Thickness = 2, Transparency = 0.4 }, label)
+	make("UIPadding", {
+		PaddingTop = UDim.new(0.12, 0),
+		PaddingBottom = UDim.new(0.12, 0),
+		PaddingLeft = UDim.new(0.06, 0),
+		PaddingRight = UDim.new(0.06, 0),
+	}, label)
+	-- Neon frame
+	local t = 0.25
+	neon(board, "FrameTop", Vector3.new(size.X + t, t, t), cf * CFrame.new(0, size.Y / 2, -0.2), color)
+	neon(board, "FrameBottom", Vector3.new(size.X + t, t, t), cf * CFrame.new(0, -size.Y / 2, -0.2), color)
+	make(
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Front, Color = color, Range = 16, Brightness = 2, Angle = 70 },
+		board
+	)
+	if flicker then
+		board:AddTag("NeonFlicker")
+	end
+	return board
+end
+
+-- Pieces ---------------------------------------------------------------------
+
+local function buildGround(root: Model)
+	local ground = make("Folder", { Name = "Ground" }, root)
+	part(ground, "Underlay", Vector3.new(400, 1, 400), CFrame.new(0, -0.5, 0), Palette.Ink)
+	-- Wet street: a touch of reflectance catches the sky and neon haze.
+	part(
+		ground,
+		"Street",
+		Vector3.new(140, 0.2, 24),
+		CFrame.new(0, 0.1, 0),
+		Palette.Asphalt,
+		{ Reflectance = 0.12 }
+	)
+	for x = -60, 60, 12 do
+		neon(ground, "LaneDash", Vector3.new(5, 0.05, 0.4), CFrame.new(x, 0.22, 0), Palette.NeonAmber)
+	end
+	part(
+		ground,
+		"SidewalkNorth",
+		Vector3.new(140, SIDEWALK_Y, 10),
+		CFrame.new(0, SIDEWALK_Y / 2, 17),
+		Palette.Concrete
+	)
+	part(
+		ground,
+		"SidewalkSouth",
+		Vector3.new(140, SIDEWALK_Y, 10),
+		CFrame.new(0, SIDEWALK_Y / 2, -17),
+		Palette.Concrete
+	)
+	neon(
+		ground,
+		"CurbGlowNorth",
+		Vector3.new(140, 0.15, 0.15),
+		CFrame.new(0, SIDEWALK_Y, 12),
+		Palette.NeonCyan
+	)
+	neon(
+		ground,
+		"CurbGlowSouth",
+		Vector3.new(140, 0.15, 0.15),
+		CFrame.new(0, SIDEWALK_Y, -12),
+		Palette.NeonPink
+	)
+
+	-- Puddles reflect neon tint; pure set dressing.
+	for _ = 1, 9 do
+		local d = rng:NextNumber(3, 7)
+		cylinder(
+			ground,
+			"Puddle",
+			0.05,
+			d,
+			Vector3.new(rng:NextNumber(-60, 60), 0.23, rng:NextNumber(-9, 9)),
+			Palette.Violet,
+			{ Material = Enum.Material.Glass, Reflectance = 0.35, Transparency = 0.3, CanCollide = false }
+		)
+	end
+
+	-- Soft invisible walls at the street ends; the haze hides what's beyond.
+	for _, x in { -71, 71 } do
+		part(
+			ground,
+			"Boundary",
+			Vector3.new(2, 40, 120),
+			CFrame.new(x, 20, 0),
+			Palette.Ink,
+			{ Transparency = 1 }
+		)
+		for z = -10, 10, 5 do
+			cylinder(ground, "Bollard", 2.4, 0.8, Vector3.new(x * 0.98, 1.2, z), Palette.Concrete)
+			neon(
+				ground,
+				"BollardCap",
+				Vector3.new(0.9, 0.3, 0.9),
+				CFrame.new(x * 0.98, 2.5, z),
+				Palette.NeonAmber
+			)
+		end
+	end
+
+	make("SpawnLocation", {
+		Name = "Spawn",
+		Anchored = true,
+		Neutral = true,
+		Size = Vector3.new(6, 0.2, 6),
+		CFrame = CFrame.new(-30, 0.3, 0),
+		Color = Palette.Violet,
+		Material = Enum.Material.SmoothPlastic,
+		TopSurface = Enum.SurfaceType.Smooth,
+		Duration = 0,
+	}, ground)
+end
+
+local SIGN_WORDS =
+	{ "SYNTH", "24/7", "CHROME", "KARAOKE", "PIXEL BAR", "SOBA", "REPAIR", "★ COZY ★", "LOFI", "TEA" }
+
+-- A chunky building with warm lit windows on the street-facing facade.
+local function building(parent: Instance, x0: number, x1: number, zNear: number, zFar: number, height: number)
+	local model = make("Model", { Name = "Building" }, parent)
+	local width = x1 - x0
+	local depth = math.abs(zFar - zNear)
+	local cx = (x0 + x1) / 2
+	local cz = (zNear + zFar) / 2
+	local facing = if zNear > 0 then Vector3.new(0, 0, -1) else Vector3.new(0, 0, 1)
+	local tones = { Palette.Concrete, Palette.Brick, Palette.Violet, Palette.Indigo }
+	local body = part(
+		model,
+		"Body",
+		Vector3.new(width, height, depth),
+		CFrame.new(cx, height / 2, cz),
+		tones[rng:NextInteger(1, #tones)]
+	)
+	model.PrimaryPart = body
+
+	-- Rounded "toy" roof lip + neon trim
+	part(
+		model,
+		"RoofLip",
+		Vector3.new(width + 1, 1, depth + 1),
+		CFrame.new(cx, height + 0.5, cz),
+		Palette.Concrete
+	)
+	neon(
+		model,
+		"RoofTrim",
+		Vector3.new(width + 1.1, 0.2, 0.2),
+		CFrame.new(cx, height + 0.1, zNear + facing.Z * 0.6),
+		Palette.NeonSet[rng:NextInteger(1, #Palette.NeonSet)]
+	)
+
+	-- Windows: warm and lived-in. Mostly cozy amber, a few neon screens.
+	local facadeZ = zNear + facing.Z * 0.15
+	for y = 4, height - 3, 4.5 do
+		for x = x0 + 2.5, x1 - 2.5, 4 do
+			local roll = rng:NextNumber()
+			if roll < 0.62 then
+				local color = if roll < 0.08
+					then Palette.NeonPink
+					elseif roll < 0.14 then Palette.NeonCyan
+					else Palette.Butter
+				neon(model, "Window", Vector3.new(2.2, 2.8, 0.3), CFrame.new(x, y, facadeZ), color):SetAttribute(
+					"Lit",
+					true
+				)
+			else
+				part(
+					model,
+					"Window",
+					Vector3.new(2.2, 2.8, 0.3),
+					CFrame.new(x, y, facadeZ),
+					Palette.Ink,
+					{ Reflectance = 0.25 }
+				)
+			end
+			-- Little sill makes each window read as a cozy box rather than a texture.
+			part(
+				model,
+				"Sill",
+				Vector3.new(2.6, 0.3, 0.6),
+				CFrame.new(x, y - 1.55, facadeZ + facing.Z * 0.3),
+				Palette.Cream
+			)
+		end
+	end
+
+	if width >= 10 and rng:NextNumber() < 0.75 then
+		local word = SIGN_WORDS[rng:NextInteger(1, #SIGN_WORDS)]
+		sign(
+			model,
+			word,
+			Vector2.new(math.min(width - 3, 10), 2.6),
+			Vector3.new(cx, rng:NextNumber(6, math.max(7, height - 4)), zNear + facing.Z * 0.4),
+			facing,
+			Palette.NeonSet[rng:NextInteger(1, #Palette.NeonSet)],
+			rng:NextNumber() < 0.5
+		)
+	end
+	return model
+end
+
+local function buildSkyline(root: Model)
+	local folder = make("Folder", { Name = "Buildings" }, root)
+	-- North row, leaving a gap at x -9..9 for the noodle stall's alcove building.
+	local x = -70
+	while x < 70 do
+		local w = rng:NextInteger(10, 18)
+		local x1 = math.min(x + w, 70)
+		if x >= -9 and x < 9 then
+			building(folder, -9, 9, 22, 34, 14)
+			x = 9
+		else
+			if x < -9 and x1 > -9 then
+				x1 = -9
+			end
+			building(folder, x, x1, 22, 50, rng:NextInteger(18, 40))
+			x = x1
+		end
+	end
+	-- South row, the garden building occupies x 20..50.
+	x = -70
+	while x < 70 do
+		local w = rng:NextInteger(10, 18)
+		local x1 = math.min(x + w, 70)
+		if x >= 20 and x < 50 then
+			x = 50
+		else
+			if x1 > 20 and x < 20 then
+				x1 = 20
+			end
+			-- The south side is low-rise so it never blocks the diorama camera, which looks north.
+			building(folder, x, x1, -22, -50, rng:NextInteger(12, 20))
+			x = x1
+		end
+	end
+	-- Distant tall towers to sell scale through the haze.
+	for _ = 1, 10 do
+		local tx = rng:NextNumber(-120, 120)
+		local tz = if rng:NextNumber() < 0.5 then rng:NextNumber(70, 140) else rng:NextNumber(-140, -70)
+		local h = rng:NextNumber(60, 140)
+		part(
+			folder,
+			"Tower",
+			Vector3.new(rng:NextNumber(14, 26), h, rng:NextNumber(14, 26)),
+			CFrame.new(tx, h / 2, tz),
+			Palette.Indigo
+		)
+		neon(folder, "TowerBeacon", Vector3.new(1, 1, 1), CFrame.new(tx, h + 0.5, tz), Palette.NeonRed):AddTag(
+			"NeonFlicker"
+		)
+	end
+
+	-- Strings of lanterns across the street.
+	for _, lx in { -40, -20, 22, 46 } do
+		part(
+			folder,
+			"LanternWire",
+			Vector3.new(0.1, 0.1, 44),
+			CFrame.new(lx, 15, 0),
+			Palette.Ink,
+			{ CanCollide = false, CastShadow = false }
+		)
+		for lz = -16, 16, 8 do
+			local color = if (lz // 8) % 2 == 0 then Palette.NeonPink else Palette.NeonAmber
+			local lantern = make("Model", { Name = "Lantern" }, folder)
+			local ball = neon(lantern, "Glow", Vector3.new(1.6, 1.6, 1.6), CFrame.new(lx, 14, lz), color, 12)
+			ball.Shape = Enum.PartType.Ball
+			lantern.PrimaryPart = ball
+			lantern:SetAttribute("BobAmplitude", 0.15)
+			lantern:SetAttribute("BobSpeed", 1.4)
+			lantern:AddTag("Bob")
+		end
+	end
+end
+
+local function buildStall(root: Model): (BasePart, { CFrame })
+	local stall = make("Model", { Name = "LuckyByteNoodles" }, root)
+	local base = SIDEWALK_Y
+
+	local counter =
+		part(stall, "Counter", Vector3.new(14, 3.4, 3), CFrame.new(0, base + 1.7, 18), Palette.Wood)
+	stall.PrimaryPart = counter
+	part(stall, "CounterTop", Vector3.new(14.6, 0.4, 3.6), CFrame.new(0, base + 3.6, 17.9), Palette.Cream)
+	part(stall, "BackWall", Vector3.new(15, 9, 1), CFrame.new(0, base + 4.5, 21.4), Palette.Coral)
+	neon(stall, "MenuStrip", Vector3.new(10, 0.25, 0.1), CFrame.new(0, base + 6.5, 20.85), Palette.NeonCyan)
+
+	for _, px in { -7, 7 } do
+		cylinder(stall, "Post", 8.4, 0.6, Vector3.new(px, base + 4.2, 15.6), Palette.Wood)
+	end
+
+	-- Striped awning, tilted toward the street.
+	local slats = 7
+	for i = 0, slats - 1 do
+		local sx = -7 + 1 + i * 2
+		local color = if i % 2 == 0 then Palette.Coral else Palette.Cream
+		part(
+			stall,
+			"Awning",
+			Vector3.new(2, 0.35, 7),
+			CFrame.new(sx, base + 9, 18) * CFrame.Angles(math.rad(-14), 0, 0),
+			color,
+			{ CastShadow = true }
+		)
+	end
+	-- Scalloped awning edge: little bobbles read as soft fabric at diorama scale.
+	for i = 0, 13 do
+		local bx = -6.5 + i
+		part(
+			stall,
+			"AwningEdge",
+			Vector3.new(0.9, 0.9, 0.9),
+			CFrame.new(bx, base + 7.75, 14.6),
+			if i % 2 == 0 then Palette.Coral else Palette.Cream,
+			{ Shape = Enum.PartType.Ball, CastShadow = false }
+		)
+	end
+
+	-- Paper-ish lanterns under the awning
+	for _, lx in { -5.5, -1.8, 1.8, 5.5 } do
+		local lantern = make("Model", { Name = "StallLantern" }, stall)
+		local glow = neon(
+			lantern,
+			"Glow",
+			Vector3.new(1.2, 1.2, 1.2),
+			CFrame.new(lx, base + 6.4, 15.4),
+			Palette.NeonRed,
+			10
+		)
+		glow.Shape = Enum.PartType.Ball
+		lantern.PrimaryPart = glow
+		lantern:SetAttribute("BobAmplitude", 0.12)
+		lantern:SetAttribute("BobSpeed", 1.8)
+		lantern:AddTag("Bob")
+	end
+
+	sign(
+		stall,
+		"LUCKY BYTE NOODLES",
+		Vector2.new(13, 2.4),
+		Vector3.new(0, base + 11.6, 17.6),
+		Vector3.new(0, 0, -1),
+		Palette.NeonPink
+	)
+
+	-- The broth pot. Server pops it when an order is served.
+	local pot = cylinder(stall, "Pot", 1.6, 2.2, Vector3.new(3.5, base + 4.6, 18.4), Palette.Concrete)
+	local steamAt = make("Attachment", { Name = "Steam", Position = Vector3.new(0.9, 0, 0) }, pot)
+	make("ParticleEmitter", {
+		Rate = 6,
+		Lifetime = NumberRange.new(2, 3),
+		Speed = NumberRange.new(1.5, 2.5),
+		SpreadAngle = Vector2.new(12, 12),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 2.2) }),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.2, 0.6),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Color = ColorSequence.new(Palette.Cream),
+		LightInfluence = 0.3,
+		Drag = 0.6,
+		Acceleration = Vector3.new(0, 1, 0),
+		-- Emit along the attachment's +X, which is world up on an upright cylinder.
+		EmissionDirection = Enum.NormalId.Right,
+	}, steamAt)
+	make("PointLight", { Color = Palette.NeonAmber, Range = 8, Brightness = 1 }, pot)
+
+	-- Stools and the spots where customers sit.
+	local spots = {}
+	for _, sx in { -4.5, 0, 4.5 } do
+		cylinder(stall, "StoolLeg", 2, 0.4, Vector3.new(sx, base + 1, 14.6), Palette.Ink)
+		cylinder(stall, "StoolSeat", 0.4, 1.8, Vector3.new(sx, base + 2.1, 14.6), Palette.Peach)
+		local at = Vector3.new(sx, base + 2.3, 14.6)
+		table.insert(spots, CFrame.lookAt(at, at + Vector3.new(0, 0, 1)))
+	end
+
+	return pot, spots
+end
+
+local function buildVending(root: Model): BasePart
+	local model = make("Model", { Name = "NoodleVending" }, root)
+	local body =
+		part(model, "Body", Vector3.new(4, 7, 2.6), CFrame.new(-14, SIDEWALK_Y + 3.5, 20.4), Palette.Indigo)
+	model.PrimaryPart = body
+	local panel = sign(
+		model,
+		"NOODLE\nBRICKS",
+		Vector2.new(3.2, 3.2),
+		Vector3.new(-14, SIDEWALK_Y + 4.6, 19.05),
+		Vector3.new(0, 0, -1),
+		Palette.NeonCyan
+	)
+	panel.Name = "Panel"
+	neon(
+		model,
+		"Slot",
+		Vector3.new(2.4, 0.5, 0.2),
+		CFrame.new(-14, SIDEWALK_Y + 1.6, 19.05),
+		Palette.NeonLime
+	)
+	local coin = neon(
+		model,
+		"HoloCoin",
+		Vector3.new(0.3, 2, 2),
+		CFrame.new(-14, SIDEWALK_Y + 8.6, 20.4),
+		Palette.NeonAmber,
+		6
+	)
+	coin.Shape = Enum.PartType.Cylinder
+	coin.Transparency = 0.3
+	coin:AddTag("Spin")
+	return body
+end
+
+local function buildRoboCat(root: Model): Model
+	local cat = make("Model", { Name = "Byte" }, root)
+	local p = Vector3.new(-9, SIDEWALK_Y, 14)
+	local body =
+		part(cat, "Body", Vector3.new(1.6, 1.2, 2.4), CFrame.new(p + Vector3.new(0, 0.6, 0)), Palette.Lilac)
+	cat.PrimaryPart = body
+	part(cat, "Head", Vector3.new(1.6, 1.4, 1.4), CFrame.new(p + Vector3.new(0, 1.5, -1.1)), Palette.Lilac)
+	for _, side in { -1, 1 } do
+		part(
+			cat,
+			"Ear",
+			Vector3.new(0.4, 0.6, 0.5),
+			CFrame.new(p + Vector3.new(side * 0.5, 2.45, -1.1)),
+			Palette.Lilac,
+			{ Shape = Enum.PartType.Wedge }
+		)
+		neon(
+			cat,
+			"Eye",
+			Vector3.new(0.3, 0.3, 0.1),
+			CFrame.new(p + Vector3.new(side * 0.35, 1.6, -1.82)),
+			Palette.NeonCyan
+		)
+	end
+	part(
+		cat,
+		"Tail",
+		Vector3.new(0.3, 0.3, 1.6),
+		CFrame.new(p + Vector3.new(0, 1.2, 1.6)) * CFrame.Angles(math.rad(35), 0, 0),
+		Palette.Lilac
+	)
+	neon(
+		cat,
+		"TailTip",
+		Vector3.new(0.4, 0.4, 0.4),
+		CFrame.new(p + Vector3.new(0, 1.75, 2.25)),
+		Palette.NeonPink
+	)
+	cat:SetAttribute("BobAmplitude", 0.06)
+	cat:SetAttribute("BobSpeed", 2.2)
+	cat:AddTag("Bob")
+	return cat
+end
+
+local CROPS = { "Scallion", "Glowshroom", "EmberChili" }
+local CROP_COLORS =
+	{ Scallion = Palette.NeonLime, Glowshroom = Palette.NeonCyan, EmberChili = Palette.NeonRed }
+
+local function buildGarden(root: Model): { Model }
+	local garden = make("Model", { Name = "RooftopGarden" }, root)
+	local x0, x1, z0, z1 = 20, 50, -50, -22
+	part(
+		garden,
+		"Body",
+		Vector3.new(x1 - x0, ROOF_Y, z1 - z0),
+		CFrame.new((x0 + x1) / 2, ROOF_Y / 2, (z0 + z1) / 2),
+		Palette.Brick
+	)
+	part(
+		garden,
+		"Roof",
+		Vector3.new(x1 - x0, 0.4, z1 - z0),
+		CFrame.new((x0 + x1) / 2, ROOF_Y + 0.2, (z0 + z1) / 2),
+		Palette.Concrete
+	)
+
+	-- Parapet with a gap where the stairs arrive.
+	local top = ROOF_Y + 0.4
+	part(
+		garden,
+		"Parapet",
+		Vector3.new(x1 - x0, 1.2, 0.6),
+		CFrame.new((x0 + x1) / 2, top + 0.6, z0 + 0.3),
+		Palette.Cream
+	)
+	part(
+		garden,
+		"Parapet",
+		Vector3.new(x1 - x0 - 6, 1.2, 0.6),
+		CFrame.new((x0 + x1) / 2 + 3, top + 0.6, z1 - 0.3),
+		Palette.Cream
+	)
+	part(
+		garden,
+		"Parapet",
+		Vector3.new(0.6, 1.2, z1 - z0),
+		CFrame.new(x1 - 0.3, top + 0.6, (z0 + z1) / 2),
+		Palette.Cream
+	)
+	part(
+		garden,
+		"Parapet",
+		Vector3.new(0.6, 1.2, z1 - z0 - 6),
+		CFrame.new(x0 + 0.3, top + 0.6, (z0 + z1) / 2 - 3),
+		Palette.Cream
+	)
+	neon(
+		garden,
+		"ParapetGlow",
+		Vector3.new(x1 - x0, 0.15, 0.15),
+		CFrame.new((x0 + x1) / 2, top + 1.25, z0 + 0.3),
+		Palette.NeonLime
+	)
+
+	-- Stairs up from the south sidewalk, climbing toward +X.
+	local steps = 12
+	local rise = (top - SIDEWALK_Y) / steps
+	for i = 1, steps do
+		local h = SIDEWALK_Y + rise * i
+		part(
+			garden,
+			"Step",
+			Vector3.new(2, h, 4),
+			CFrame.new(x0 - 25 + i * 2, h / 2, -19),
+			if i % 2 == 0 then Palette.Concrete else Palette.Violet
+		)
+	end
+	-- Landing joins the top step to the roof gap.
+	part(garden, "Landing", Vector3.new(3, top, 6), CFrame.new(x0 + 0.5, top / 2, -20), Palette.Concrete)
+	neon(
+		garden,
+		"StairGlow",
+		Vector3.new(26, 0.15, 0.15),
+		CFrame.new(x0 - 12, (SIDEWALK_Y + top) / 2 + 1.2, -17)
+			* CFrame.Angles(0, 0, math.atan2(top - SIDEWALK_Y, 24)),
+		Palette.NeonCyan
+	)
+
+	sign(
+		garden,
+		"SKY GARDEN",
+		Vector2.new(9, 2.2),
+		Vector3.new(35, ROOF_Y - 3, -21.6),
+		Vector3.new(0, 0, 1),
+		Palette.NeonLime
+	)
+
+	-- Planters in two rows, each under a purple grow lamp.
+	local planters = {}
+	for row, pz in { -30, -40 } do
+		local lamp = neon(
+			garden,
+			"GrowLamp",
+			Vector3.new(26, 0.4, 0.8),
+			CFrame.new(35, top + 7, pz),
+			Palette.NeonPurple
+		)
+		make("SurfaceLight", {
+			Face = Enum.NormalId.Bottom,
+			Color = Palette.NeonPurple,
+			Range = 10,
+			Brightness = 3,
+			Angle = 120,
+		}, lamp)
+		for _, lx in { 23, 47 } do
+			cylinder(garden, "LampPost", 7, 0.4, Vector3.new(lx, top + 3.5, pz), Palette.Ink)
+		end
+
+		for i, px in { 27, 35, 43 } do
+			local crop = CROPS[i]
+			local planter = make("Model", { Name = `Planter_{row}_{i}` }, garden)
+			local box =
+				part(planter, "Box", Vector3.new(6, 1.6, 5), CFrame.new(px, top + 0.8, pz), Palette.Wood)
+			local soil = part(
+				planter,
+				"Soil",
+				Vector3.new(5.2, 0.3, 4.2),
+				CFrame.new(px, top + 1.65, pz),
+				Palette.Soil,
+				{ Material = Enum.Material.Ground }
+			)
+			planter.PrimaryPart = box
+			-- Crop marker stake so players can read what grows where.
+			cylinder(planter, "Stake", 1.6, 0.15, Vector3.new(px + 2.5, top + 2.4, pz - 2.2), Palette.Cream)
+			neon(
+				planter,
+				"Marker",
+				Vector3.new(0.6, 0.6, 0.6),
+				CFrame.new(px + 2.5, top + 3.3, pz - 2.2),
+				CROP_COLORS[crop]
+			)
+			planter:SetAttribute("Crop", crop)
+			planter:SetAttribute("Stage", 0)
+			planter:AddTag("Planter")
+			prompt(soil, "Plant", crop, { Name = "GardenPrompt" })
+			table.insert(planters, planter)
+		end
+	end
+	return planters
+end
+
+-- Public ---------------------------------------------------------------------
+
+local DistrictBuilder = {}
+
+function DistrictBuilder.build(): District
+	local existing = workspace:FindFirstChild("LanternRow")
+	if existing then
+		existing:Destroy()
+	end
+	local root = make("Model", { Name = "LanternRow" }) :: Model
+
+	buildGround(root)
+	buildSkyline(root)
+	local pot, spots = buildStall(root)
+	local vending = buildVending(root)
+	local cat = buildRoboCat(root)
+	local planters = buildGarden(root)
+
+	prompt(vending, "Buy Noodle Brick", "Vending", { Name = "BuyPrompt" })
+	prompt(cat.PrimaryPart :: BasePart, "Pet", "Byte", { Name = "PetPrompt", MaxActivationDistance = 7 })
+
+	root.Parent = workspace
+	return {
+		Root = root,
+		CustomerSpots = spots,
+		StallPot = pot,
+		Vending = vending,
+		Planters = planters,
+		RoboCat = cat,
+	}
+end
+
+return DistrictBuilder
+]=])
+
+install("ServerScriptService/Server/Services", "GardenService", "ModuleScript", [=[
+--!strict
+-- Rooftop planters: Plant -> (grows through 3 stages) -> Harvest.
+-- The server only tracks state on attributes ("Crop", "Stage"); the client draws the plants
+-- and does all the bouncing (see client/Controllers/PlantVisuals).
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local ItemsModule = require(Shared.Items)
+
+local PlayerData = require(script.Parent.PlayerDataService)
+local Notify = require(script.Parent.Notify)
+
+local RIPE = 3
+
+local GardenService = {}
+
+local function refreshPrompt(planter: Model, promptObj: ProximityPrompt)
+	local crop = planter:GetAttribute("Crop") :: string
+	local stage = planter:GetAttribute("Stage") :: number
+	local name = ItemsModule.Items[crop].Name
+	if stage == 0 then
+		promptObj.Enabled = true
+		promptObj.ActionText = "Plant"
+		promptObj.ObjectText = name
+	elseif stage >= RIPE then
+		promptObj.Enabled = true
+		promptObj.ActionText = "Harvest"
+		promptObj.ObjectText = name
+	else
+		promptObj.Enabled = false
+	end
+end
+
+local function setStage(planter: Model, promptObj: ProximityPrompt, stage: number)
+	planter:SetAttribute("Stage", stage)
+	refreshPrompt(planter, promptObj)
+end
+
+local function setup(planter: Model)
+	local soil = planter:FindFirstChild("Soil") :: BasePart
+	local promptObj = soil:FindFirstChild("GardenPrompt") :: ProximityPrompt
+	-- Bumped on every replant so an old growth timer can't advance a new crop.
+	local generation = 0
+
+	refreshPrompt(planter, promptObj)
+
+	promptObj.Triggered:Connect(function(player)
+		local stage = planter:GetAttribute("Stage") :: number
+		local crop = planter:GetAttribute("Crop") :: string
+
+		if stage == 0 then
+			generation += 1
+			local myGeneration = generation
+			setStage(planter, promptObj, 1)
+			Notify.pop(planter, 0.6)
+			local stepTime = Config.GrowSeconds / (RIPE - 1)
+			for nextStage = 2, RIPE do
+				task.delay(stepTime * (nextStage - 1), function()
+					if generation == myGeneration and planter.Parent then
+						setStage(planter, promptObj, nextStage)
+					end
+				end)
+			end
+		elseif stage >= RIPE then
+			setStage(planter, promptObj, 0)
+			PlayerData.addItem(player, crop, Config.HarvestYield)
+			PlayerData.bumpStat(player, "Harvested")
+			Notify.toast(player, `+{Config.HarvestYield} {ItemsModule.Items[crop].Name}`, "good")
+		end
+	end)
+end
+
+function GardenService.start(planters: { Model })
+	for _, planter in planters do
+		setup(planter)
+	end
+end
+
+return GardenService
+]=])
+
+install("ServerScriptService/Server/Services", "InteractionsService", "ModuleScript", [=[
+--!strict
+-- Small one-off interactions around the street: the noodle vending machine and Byte the cat.
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+local PlayerData = require(script.Parent.PlayerDataService)
+local Notify = require(script.Parent.Notify)
+
+local PURRS = {
+	"Byte purrs in binary. 01110000 01110101 01110010 01110010",
+	"Byte headbutts your hand. Firmware: content.",
+	"Byte's tail LED blinks pink. That means love.",
+	"Byte rolls over. Belly panel slightly warm.",
+}
+
+local InteractionsService = {}
+
+function InteractionsService.start(vending: BasePart, cat: Model)
+	local buy = vending:FindFirstChild("BuyPrompt") :: ProximityPrompt
+	buy.ObjectText = `Vending · {Config.NoodleBrickPrice} cr`
+	buy.Triggered:Connect(function(player)
+		if PlayerData.spendCredits(player, Config.NoodleBrickPrice) then
+			PlayerData.addItem(player, "Noodles", 1)
+			Notify.pop(vending, 0.8)
+			Notify.toast(player, "+1 Noodle Brick", "good")
+		else
+			Notify.toast(player, "Not enough credits. Serve a bowl or two!", "nope")
+		end
+	end)
+
+	local pet = (cat.PrimaryPart :: BasePart):FindFirstChild("PetPrompt") :: ProximityPrompt
+	local lastPet: { [Player]: number } = {}
+	pet.Triggered:Connect(function(player)
+		local now = os.clock()
+		if (lastPet[player] or 0) + 1.5 > now then
+			return
+		end
+		lastPet[player] = now
+		Notify.pop(cat, 1)
+		Notify.toast(player, PURRS[math.random(1, #PURRS)], "info")
+	end)
+end
+
+return InteractionsService
+]=])
+
+install("ServerScriptService/Server/Services", "Notify", "ModuleScript", [=[
+--!strict
+-- Tiny wrapper around the client-facing remotes.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local Toast = Remotes:WaitForChild("Toast") :: RemoteEvent
+local Pop = Remotes:WaitForChild("Pop") :: RemoteEvent
+
+local Notify = {}
+
+-- A little bubble message for one player. `tone` picks the color: "good" | "info" | "nope".
+function Notify.toast(player: Player, text: string, tone: string?)
+	Toast:FireClient(player, text, tone or "info")
+end
+
+-- Ask every client to give an instance a springy bounce.
+function Notify.pop(target: Instance, strength: number?)
+	Pop:FireAllClients(target, strength or 1)
+end
+
+return Notify
+]=])
+
+install("ServerScriptService/Server/Services", "PlayerDataService", "ModuleScript", [=[
+--!strict
+-- Owns each player's credits and inventory. Saves to DataStore and mirrors values onto
+-- player attributes ("Credits", "Inv_<ItemId>") so the client HUD can read them for free.
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local ItemsModule = require(Shared.Items)
+
+export type Profile = {
+	Credits: number,
+	Inventory: { [string]: number },
+	Stats: { Served: number, Harvested: number },
+}
+
+local PlayerDataService = {}
+
+local profiles: { [Player]: Profile } = {}
+-- If a load fails we still let the player play, but never save over their real data.
+local canSave: { [Player]: boolean } = {}
+
+local store: DataStore? = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Config.DataStoreName)
+	end)
+	if ok then
+		store = result
+	else
+		warn("[PlayerData] DataStore unavailable, progress will not save:", result)
+	end
+end
+
+local function defaultProfile(): Profile
+	local inventory = {}
+	for id in ItemsModule.Items do
+		inventory[id] = Config.StartingInventory[id] or 0
+	end
+	return {
+		Credits = Config.StartingCredits,
+		Inventory = inventory,
+		Stats = { Served = 0, Harvested = 0 },
+	}
+end
+
+local function reconcile(saved: any): Profile
+	local profile = defaultProfile()
+	if typeof(saved) ~= "table" then
+		return profile
+	end
+	if typeof(saved.Credits) == "number" then
+		profile.Credits = saved.Credits
+	end
+	if typeof(saved.Inventory) == "table" then
+		for id in profile.Inventory do
+			if typeof(saved.Inventory[id]) == "number" then
+				profile.Inventory[id] = saved.Inventory[id]
+			end
+		end
+	end
+	if typeof(saved.Stats) == "table" then
+		profile.Stats.Served = tonumber(saved.Stats.Served) or 0
+		profile.Stats.Harvested = tonumber(saved.Stats.Harvested) or 0
+	end
+	return profile
+end
+
+local function keyFor(player: Player): string
+	return `player_{player.UserId}`
+end
+
+local function mirror(player: Player, profile: Profile)
+	player:SetAttribute("Credits", profile.Credits)
+	for id, count in profile.Inventory do
+		player:SetAttribute(`Inv_{id}`, count)
+	end
+end
+
+local function load(player: Player)
+	local saved = nil
+	local loaded = store == nil -- nothing to load means nothing to protect
+	if store then
+		for attempt = 1, 3 do
+			local ok, result = pcall(function()
+				return (store :: DataStore):GetAsync(keyFor(player))
+			end)
+			if ok then
+				saved = result
+				loaded = true
+				break
+			end
+			warn(`[PlayerData] Load attempt {attempt} failed for {player.Name}:`, result)
+			task.wait(attempt)
+		end
+	end
+
+	if player.Parent == nil then
+		return
+	end
+	local profile = reconcile(saved)
+	profiles[player] = profile
+	canSave[player] = loaded and store ~= nil
+	mirror(player, profile)
+end
+
+local function save(player: Player)
+	local profile = profiles[player]
+	if not (profile and store and canSave[player]) then
+		return
+	end
+	local ok, err = pcall(function()
+		(store :: DataStore):SetAsync(keyFor(player), profile)
+	end)
+	if not ok then
+		warn(`[PlayerData] Save failed for {player.Name}:`, err)
+	end
+end
+
+-- Public API -----------------------------------------------------------------
+
+function PlayerDataService.get(player: Player): Profile?
+	return profiles[player]
+end
+
+function PlayerDataService.addCredits(player: Player, amount: number)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	profile.Credits = math.max(0, profile.Credits + amount)
+	mirror(player, profile)
+end
+
+function PlayerDataService.spendCredits(player: Player, amount: number): boolean
+	local profile = profiles[player]
+	if not profile or profile.Credits < amount then
+		return false
+	end
+	profile.Credits -= amount
+	mirror(player, profile)
+	return true
+end
+
+function PlayerDataService.addItem(player: Player, id: string, count: number)
+	local profile = profiles[player]
+	if not profile or profile.Inventory[id] == nil then
+		return
+	end
+	profile.Inventory[id] += count
+	mirror(player, profile)
+end
+
+function PlayerDataService.hasItems(player: Player, needs: { [string]: number }): boolean
+	local profile = profiles[player]
+	if not profile then
+		return false
+	end
+	for id, count in needs do
+		if (profile.Inventory[id] or 0) < count then
+			return false
+		end
+	end
+	return true
+end
+
+function PlayerDataService.takeItems(player: Player, needs: { [string]: number }): boolean
+	if not PlayerDataService.hasItems(player, needs) then
+		return false
+	end
+	local profile = profiles[player] :: Profile
+	for id, count in needs do
+		profile.Inventory[id] -= count
+	end
+	mirror(player, profile)
+	return true
+end
+
+function PlayerDataService.bumpStat(player: Player, stat: "Served" | "Harvested")
+	local profile = profiles[player]
+	if profile then
+		profile.Stats[stat] += 1
+	end
+end
+
+function PlayerDataService.start()
+	Players.PlayerAdded:Connect(load)
+	for _, player in Players:GetPlayers() do
+		task.spawn(load, player)
+	end
+
+	Players.PlayerRemoving:Connect(function(player)
+		save(player)
+		profiles[player] = nil
+		canSave[player] = nil
+	end)
+
+	game:BindToClose(function()
+		for _, player in Players:GetPlayers() do
+			task.spawn(save, player)
+		end
+		task.wait(2)
+	end)
+
+	task.spawn(function()
+		while true do
+			task.wait(Config.AutosaveSeconds)
+			for _, player in Players:GetPlayers() do
+				task.spawn(save, player)
+			end
+		end
+	end)
+end
+
+return PlayerDataService
+]=])
+
+install("ServerScriptService/Server/Services", "StallService", "ModuleScript", [=[
+--!strict
+-- Lucky Byte Noodles. Chibi customers pop onto the stools with an order bubble; serve them
+-- if you have the ingredients. No fail state: if you're slow they just wave and wander off.
+
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Palette = require(Shared.Palette)
+local ItemsModule = require(Shared.Items)
+
+local PlayerData = require(script.Parent.PlayerDataService)
+local Notify = require(script.Parent.Notify)
+
+local StallService = {}
+
+local rng = Random.new()
+local occupied: { [number]: Model } = {}
+
+local NAMES = { "Kiko", "Zed", "Momo", "Rook", "Lumi", "Taro", "Nyx", "Pip", "Juno", "Hex", "Mochi", "Vee" }
+local GREETINGS = {
+	"Long shift. Need noodles.",
+	"Rain's nice tonight, huh?",
+	"My cyberdeck crashed again...",
+	"Smells like home in here.",
+	"Extra glow, please!",
+	"Byte! Hi Byte!",
+}
+
+local function makePart(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cframe: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.Size = size
+	p.CFrame = cframe
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
+
+-- Chibi proportions: the head is bigger than the body. That's the whole trick.
+local function buildCustomer(seat: CFrame): Model
+	local model = Instance.new("Model")
+	model.Name = "Customer"
+	local outfit = Palette.ToySet[rng:NextInteger(1, #Palette.ToySet)]
+	local glow = Palette.NeonSet[rng:NextInteger(1, #Palette.NeonSet)]
+
+	local body = makePart(model, "Body", Vector3.new(1.6, 1.6, 1.6), seat * CFrame.new(0, 0.8, 0), outfit)
+	body.Shape = Enum.PartType.Ball
+	model.PrimaryPart = body
+	local head =
+		makePart(model, "Head", Vector3.new(2.2, 2.2, 2.2), seat * CFrame.new(0, 2.5, 0), Palette.Peach)
+	head.Shape = Enum.PartType.Ball
+	-- The seat CFrame looks at the counter, so -Z in seat space is "forward" for the face.
+	makePart(
+		model,
+		"Visor",
+		Vector3.new(1.7, 0.45, 0.4),
+		seat * CFrame.new(0, 2.65, -0.95),
+		glow,
+		Enum.Material.Neon
+	)
+	makePart(model, "Hair", Vector3.new(2.3, 0.8, 2.3), seat * CFrame.new(0, 3.35, 0.1), outfit)
+	local antenna = makePart(
+		model,
+		"Antenna",
+		Vector3.new(0.4, 0.4, 0.4),
+		seat * CFrame.new(0.6, 4.1, 0),
+		glow,
+		Enum.Material.Neon
+	)
+	antenna.Shape = Enum.PartType.Ball
+
+	model:SetAttribute("BobAmplitude", 0.08)
+	model:SetAttribute("BobSpeed", rng:NextNumber(1.6, 2.6))
+	return model
+end
+
+local function orderBubble(model: Model, recipe: ItemsModule.Recipe, name: string)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Order"
+	gui.Size = UDim2.fromOffset(150, 64)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 4.6, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.MaxDistance = 90
+
+	local bubble = Instance.new("Frame")
+	bubble.Size = UDim2.fromScale(1, 1)
+	bubble.BackgroundColor3 = Palette.Cream
+	bubble.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.5, 0)
+	corner.Parent = bubble
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Palette.NeonPink
+	stroke.Thickness = 2
+	stroke.Parent = bubble
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 0.62)
+	label.Text = `{recipe.Icon} {recipe.Name}`
+	label.TextColor3 = Palette.Ink
+	label.TextScaled = true
+	label.Font = Enum.Font.FredokaOne
+	label.Parent = bubble
+
+	local who = Instance.new("TextLabel")
+	who.BackgroundTransparency = 1
+	who.Position = UDim2.fromScale(0, 0.58)
+	who.Size = UDim2.fromScale(1, 0.34)
+	who.Text = name
+	who.TextColor3 = Palette.Brick
+	who.TextScaled = true
+	who.Font = Enum.Font.FredokaOne
+	who.Parent = bubble
+
+	-- Patience bar; the client shrinks it smoothly using the Patience/SpawnedAt attributes.
+	local bar = Instance.new("Frame")
+	bar.Name = "Patience"
+	bar.AnchorPoint = Vector2.new(0.5, 0)
+	bar.Position = UDim2.new(0.5, 0, 1, 4)
+	bar.Size = UDim2.new(0.7, 0, 0, 5)
+	bar.BackgroundColor3 = Palette.NeonLime
+	bar.BorderSizePixel = 0
+	bar.Parent = bubble
+	local barCorner = Instance.new("UICorner")
+	barCorner.CornerRadius = UDim.new(1, 0)
+	barCorner.Parent = bar
+
+	gui.Parent = model.PrimaryPart
+end
+
+local function leave(spotIndex: number, model: Model, mood: "happy" | "sad")
+	if occupied[spotIndex] ~= model then
+		return
+	end
+	occupied[spotIndex] = nil
+	model:SetAttribute("Mood", mood)
+	local promptObj = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+	if promptObj then
+		promptObj.Enabled = false
+	end
+	-- Give the client time to play the hop / pop-out before we remove it.
+	task.delay(1.4, function()
+		model:Destroy()
+	end)
+end
+
+local function spawnCustomer(spotIndex: number, seat: CFrame, pot: BasePart)
+	local recipeId = ItemsModule.RecipeOrder[rng:NextInteger(1, #ItemsModule.RecipeOrder)]
+	local recipe = ItemsModule.Recipes[recipeId]
+	local name = NAMES[rng:NextInteger(1, #NAMES)]
+
+	local model = buildCustomer(seat)
+	model:SetAttribute("Recipe", recipeId)
+	model:SetAttribute("Patience", Config.CustomerPatienceSeconds)
+	model:SetAttribute("SpawnedAt", workspace:GetServerTimeNow())
+	orderBubble(model, recipe, name)
+
+	local promptObj = Instance.new("ProximityPrompt")
+	promptObj.ActionText = `Serve {recipe.Name}`
+	promptObj.ObjectText = name
+	promptObj.HoldDuration = 0.4
+	promptObj.MaxActivationDistance = 9
+	promptObj.RequiresLineOfSight = false
+	promptObj.Parent = model.PrimaryPart
+
+	local spawnedAt = os.clock()
+	promptObj.Triggered:Connect(function(player)
+		if occupied[spotIndex] ~= model then
+			return
+		end
+		if not PlayerData.takeItems(player, recipe.Needs) then
+			Notify.toast(player, `Need {ItemsModule.describeNeeds(recipe.Needs)}`, "nope")
+			return
+		end
+		local waited = os.clock() - spawnedAt
+		local patienceLeft = math.clamp(1 - waited / Config.CustomerPatienceSeconds, 0, 1)
+		local tip = math.floor(recipe.Price * Config.MaxTipFraction * patienceLeft + 0.5)
+		PlayerData.addCredits(player, recipe.Price + tip)
+		PlayerData.bumpStat(player, "Served")
+		Notify.pop(pot, 1.2)
+		local thanks = GREETINGS[rng:NextInteger(1, #GREETINGS)]
+		Notify.toast(
+			player,
+			`{name}: "{thanks}"  +{recipe.Price} cr` .. (if tip > 0 then ` (+{tip} tip)` else ""),
+			"good"
+		)
+		leave(spotIndex, model, "happy")
+	end)
+
+	model:AddTag("Customer")
+	model:AddTag("Bob")
+	model.Parent = workspace
+	occupied[spotIndex] = model
+
+	task.delay(Config.CustomerPatienceSeconds, function()
+		leave(spotIndex, model, "sad")
+	end)
+end
+
+function StallService.start(spots: { CFrame }, pot: BasePart)
+	task.spawn(function()
+		while true do
+			local range = Config.CustomerSpawnInterval
+			task.wait(rng:NextNumber(range.Min, range.Max))
+			-- Only bring customers in while someone's around to serve them.
+			if #Players:GetPlayers() == 0 then
+				continue
+			end
+			local free = {}
+			for i in spots do
+				if not occupied[i] then
+					table.insert(free, i)
+				end
+			end
+			if #free > 0 then
+				local i = free[rng:NextInteger(1, #free)]
+				spawnCustomer(i, spots[i], pot)
+			end
+		end
+	end)
+end
+
+return StallService
+]=])
+
+install("StarterPlayer/StarterPlayerScripts/Client", "Main", "LocalScript", [=[
+--!strict
+-- Client entry point. Everything here is presentation: camera, juice, HUD, weather.
+
+local Controllers = script.Parent:WaitForChild("Controllers")
+
+local controllers = {
+	require(Controllers:WaitForChild("CameraController")),
+	require(Controllers:WaitForChild("AmbientController")),
+	require(Controllers:WaitForChild("PlantVisuals")),
+	require(Controllers:WaitForChild("HudController")),
+	require(Controllers:WaitForChild("RainController")),
+}
+
+for _, controller in controllers do
+	task.spawn(controller.start)
+end
+]=])
+
+install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "AmbientController", "ModuleScript", [=[
+--!strict
+-- Client-side life: things that bob, spin, flicker and pop. Driven entirely by tags and
+-- attributes the server sets, so art can be swapped without touching code.
+--
+--   Tag "Bob"         Model gently floats (attributes BobAmplitude, BobSpeed)
+--   Tag "Spin"        Part/Model turns slowly around Y
+--   Tag "NeonFlicker" Sign or light occasionally stutters like a cheap neon tube
+--   Tag "Customer"    Pops in on arrival; hops (happy) or shrinks away (sad) on leaving
+--   Remote "Pop"      Server asks for a springy bounce on any instance
+
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Juice = require(Shared.Juice)
+local Palette = require(Shared.Palette)
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local AmbientController = {}
+
+-- Bob & Spin ---------------------------------------------------------------
+
+type Floater = { base: CFrame, phase: number }
+local bobbing: { [Model]: Floater } = {}
+local spinning: { [Instance]: CFrame } = {}
+
+local function pivotOf(inst: Instance): CFrame?
+	if inst:IsA("Model") then
+		return inst:GetPivot()
+	elseif inst:IsA("BasePart") then
+		return inst.CFrame
+	end
+	return nil
+end
+
+local function setPivot(inst: Instance, cf: CFrame)
+	if inst:IsA("Model") then
+		inst:PivotTo(cf)
+	elseif inst:IsA("BasePart") then
+		inst.CFrame = cf
+	end
+end
+
+local function onTag(tag: string, added: (Instance) -> (), removed: ((Instance) -> ())?)
+	for _, inst in CollectionService:GetTagged(tag) do
+		task.spawn(added, inst)
+	end
+	CollectionService:GetInstanceAddedSignal(tag):Connect(added)
+	if removed then
+		CollectionService:GetInstanceRemovedSignal(tag):Connect(removed)
+	end
+end
+
+-- Flicker ------------------------------------------------------------------
+
+local function flickerLoop(inst: Instance)
+	local rng = Random.new()
+	while inst.Parent do
+		task.wait(rng:NextNumber(2, 9))
+		if not inst.Parent then
+			break
+		end
+		-- A short burst of off/on stutters, like a tube that needs replacing.
+		for _ = 1, rng:NextInteger(2, 5) do
+			local on = false
+			for _, d in inst:GetDescendants() do
+				if d:IsA("Light") or d:IsA("SurfaceGui") then
+					d.Enabled = on
+				end
+			end
+			if inst:IsA("BasePart") and inst.Material == Enum.Material.Neon then
+				inst.LocalTransparencyModifier = 0.85
+			end
+			task.wait(rng:NextNumber(0.03, 0.12))
+			for _, d in inst:GetDescendants() do
+				if d:IsA("Light") or d:IsA("SurfaceGui") then
+					d.Enabled = true
+				end
+			end
+			if inst:IsA("BasePart") then
+				inst.LocalTransparencyModifier = 0
+			end
+			task.wait(rng:NextNumber(0.04, 0.2))
+		end
+	end
+end
+
+-- Customers ----------------------------------------------------------------
+
+local function watchPatience(model: Model)
+	local bar = model:FindFirstChild("Patience", true) :: Frame?
+	if not bar then
+		return
+	end
+	local total = model:GetAttribute("Patience") :: number
+	local spawnedAt = model:GetAttribute("SpawnedAt") :: number
+	local fullWidth = bar.Size.X.Scale
+	local conn: RBXScriptConnection
+	conn = RunService.Heartbeat:Connect(function()
+		if not model.Parent or model:GetAttribute("Mood") then
+			conn:Disconnect()
+			return
+		end
+		local left = math.clamp(1 - (workspace:GetServerTimeNow() - spawnedAt) / total, 0, 1)
+		bar.Size = UDim2.new(fullWidth * left, 0, 0, bar.Size.Y.Offset)
+		bar.BackgroundColor3 = if left > 0.5
+			then Palette.NeonLime
+			elseif left > 0.2 then Palette.NeonAmber
+			else Palette.NeonRed
+	end)
+end
+
+local function onCustomer(inst: Instance)
+	if not inst:IsA("Model") then
+		return
+	end
+	local model = inst
+	Juice.popIn(model)
+	task.spawn(watchPatience, model)
+	model:GetAttributeChangedSignal("Mood"):Connect(function()
+		local mood = model:GetAttribute("Mood")
+		bobbing[model] = nil
+		local order = model:FindFirstChild("Order", true)
+		if order and order:IsA("BillboardGui") then
+			order.Enabled = false
+		end
+		if mood == "happy" then
+			Juice.hop(model, 3)
+			task.delay(0.8, function()
+				if model.Parent then
+					Juice.popOut(model)
+				end
+			end)
+		else
+			Juice.popOut(model)
+		end
+	end)
+end
+
+-- Start --------------------------------------------------------------------
+
+function AmbientController.start()
+	onTag("Bob", function(inst)
+		if inst:IsA("Model") then
+			local base = inst:GetPivot()
+			bobbing[inst] = { base = base, phase = math.random() * math.pi * 2 }
+		end
+	end, function(inst)
+		if inst:IsA("Model") then
+			bobbing[inst] = nil
+		end
+	end)
+
+	onTag("Spin", function(inst)
+		local cf = pivotOf(inst)
+		if cf then
+			spinning[inst] = cf
+		end
+	end, function(inst)
+		spinning[inst] = nil
+	end)
+
+	onTag("NeonFlicker", function(inst)
+		task.spawn(flickerLoop, inst)
+	end)
+
+	onTag("Customer", onCustomer)
+
+	local pop = Remotes:WaitForChild("Pop") :: RemoteEvent
+	pop.OnClientEvent:Connect(function(target: Instance?, strength: number?)
+		if target and target.Parent then
+			Juice.pop(target, strength)
+		end
+	end)
+
+	local t = 0
+	RunService.RenderStepped:Connect(function(dt)
+		t += dt
+		for model, floater in bobbing do
+			if not model.Parent then
+				bobbing[model] = nil
+				continue
+			end
+			local amp = (model:GetAttribute("BobAmplitude") :: number?) or 0.2
+			local speed = (model:GetAttribute("BobSpeed") :: number?) or 1.5
+			local y = math.sin(t * speed + floater.phase) * amp
+			-- A whisper of sway sells "hanging" / "breathing" better than pure vertical motion.
+			local sway = math.sin(t * speed * 0.5 + floater.phase) * amp * 0.15
+			model:PivotTo(floater.base * CFrame.new(0, y, 0) * CFrame.Angles(0, 0, sway))
+		end
+		for inst, base in spinning do
+			if not inst.Parent then
+				spinning[inst] = nil
+				continue
+			end
+			setPivot(inst, base * CFrame.Angles(0, t * 1.2, 0))
+		end
+	end)
+end
+
+return AmbientController
+]=])
+
+install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "CameraController", "ModuleScript", [=[
+--!strict
+-- Cozy diorama camera: high angle, narrow FOV, soft tilt-shift blur, smooth follow.
+-- This is the single biggest lever for the "Tiny Eden" look: the city reads as a toy you
+-- could hold in your hands.
+--
+--   Z / C  or  L1 / R1 : rotate 45° (E is the interact key, so we stay off it)
+--   Mouse wheel        : zoom
+--   V                  : toggle back to the default Roblox camera
+
+local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+local CameraController = {}
+
+local cfg = Config.Camera
+local player = Players.LocalPlayer
+
+local enabled = true
+local targetYaw = math.rad(cfg.StartYaw)
+local currentYaw = targetYaw
+local targetDistance = cfg.Distance
+local currentDistance = cfg.Distance
+local focus: Vector3? = nil
+
+-- Parts we've faded because they block the view of the player.
+local faded: { [BasePart]: boolean } = {}
+
+local function damp(a: number, b: number, sharpness: number, dt: number): number
+	return a + (b - a) * (1 - math.exp(-sharpness * dt))
+end
+
+local function updateOcclusion(camera: Camera, target: Vector3, character: Model)
+	local still: { [BasePart]: boolean } = {}
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore: { Instance } = { character }
+
+	local origin = camera.CFrame.Position
+	for _ = 1, 6 do
+		params.FilterDescendantsInstances = ignore
+		local result = workspace:Raycast(origin, target - origin, params)
+		if not result then
+			break
+		end
+		local hit = result.Instance
+		if hit:IsA("BasePart") and hit.Transparency < 1 then
+			still[hit] = true
+			hit.LocalTransparencyModifier = 0.75
+		end
+		table.insert(ignore, hit)
+	end
+
+	for p in faded do
+		if not still[p] then
+			p.LocalTransparencyModifier = 0
+		end
+	end
+	faded = still
+end
+
+local function clearOcclusion()
+	for p in faded do
+		p.LocalTransparencyModifier = 0
+	end
+	faded = {}
+end
+
+function CameraController.start()
+	local camera = workspace.CurrentCamera
+
+	-- Tilt-shift: keep a band around the player crisp, soften the foreground and background.
+	local dof = Instance.new("DepthOfFieldEffect")
+	dof.Name = "TiltShift"
+	dof.FarIntensity = 0.35
+	dof.NearIntensity = 0.6
+	dof.Parent = camera
+
+	local function apply()
+		if enabled then
+			camera.CameraType = Enum.CameraType.Scriptable
+			camera.FieldOfView = cfg.FieldOfView
+			dof.Enabled = true
+		else
+			camera.CameraType = Enum.CameraType.Custom
+			camera.FieldOfView = 70
+			dof.Enabled = false
+			clearOcclusion()
+		end
+	end
+	apply()
+
+	ContextActionService:BindAction("CozyRotate", function(_, state, input)
+		if state ~= Enum.UserInputState.Begin then
+			return Enum.ContextActionResult.Pass
+		end
+		local dir = if input.KeyCode == Enum.KeyCode.Z or input.KeyCode == Enum.KeyCode.ButtonL1
+			then -1
+			else 1
+		targetYaw += math.rad(cfg.RotateStep) * dir
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.Z, Enum.KeyCode.C, Enum.KeyCode.ButtonL1, Enum.KeyCode.ButtonR1)
+
+	ContextActionService:BindAction("CozyToggleCamera", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			enabled = not enabled
+			apply()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.V)
+
+	UserInputService.InputChanged:Connect(function(input, processed)
+		if processed or not enabled then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseWheel then
+			targetDistance =
+				math.clamp(targetDistance - input.Position.Z * 6, cfg.MinDistance, cfg.MaxDistance)
+		end
+	end)
+
+	-- Respawns reset CameraType; reclaim it.
+	player.CharacterAdded:Connect(function()
+		task.defer(apply)
+	end)
+
+	RunService:BindToRenderStep("CozyCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
+		if not enabled then
+			return
+		end
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not (character and root) then
+			return
+		end
+		if camera.CameraType ~= Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
+
+		local goal = root.Position + Vector3.new(0, 1.5, 0)
+		if focus then
+			local alpha = 1 - math.exp(-cfg.FollowSharpness * dt)
+			focus = focus:Lerp(goal, alpha)
+		else
+			focus = goal
+		end
+		currentYaw = damp(currentYaw, targetYaw, cfg.RotateSharpness, dt)
+		currentDistance = damp(currentDistance, targetDistance, cfg.RotateSharpness, dt)
+
+		local f = focus :: Vector3
+		local rotation = CFrame.Angles(0, currentYaw, 0) * CFrame.Angles(-math.rad(cfg.Pitch), 0, 0)
+		local position = f + rotation:VectorToWorldSpace(Vector3.new(0, 0, currentDistance))
+		camera.CFrame = CFrame.lookAt(position, f)
+		camera.Focus = CFrame.new(f)
+
+		dof.FocusDistance = currentDistance
+		dof.InFocusRadius = currentDistance * 0.3
+
+		updateOcclusion(camera, f, character)
+	end)
+end
+
+return CameraController
+]=])
+
+install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "HudController", "ModuleScript", [=[
+--!strict
+-- The HUD: soft rounded "sticker" UI (cozy) with neon outlines (cyber).
+-- Reads credits/inventory straight off player attributes set by PlayerDataService.
+
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Palette = require(Shared.Palette)
+local ItemsModule = require(Shared.Items)
+
+local HudController = {}
+
+local player = Players.LocalPlayer
+
+local TONES = {
+	good = Palette.NeonLime,
+	info = Palette.NeonCyan,
+	nope = Palette.NeonPink,
+}
+
+local function make(className: string, props: { [string]: any }, parent: Instance?): any
+	local inst = Instance.new(className :: any)
+	for key, value in props do
+		(inst :: any)[key] = value
+	end
+	if parent then
+		inst.Parent = parent
+	end
+	return inst
+end
+
+-- A rounded dark pill with a neon outline: the basic HUD "sticker".
+local function pill(
+	parent: Instance,
+	name: string,
+	size: UDim2,
+	position: UDim2,
+	anchor: Vector2,
+	stroke: Color3
+): Frame
+	local frame = make("Frame", {
+		Name = name,
+		Size = size,
+		Position = position,
+		AnchorPoint = anchor,
+		BackgroundColor3 = Palette.Ink,
+		BackgroundTransparency = 0.15,
+	}, parent)
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, frame)
+	make("UIStroke", { Color = stroke, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, frame)
+	return frame
+end
+
+local function text(parent: Instance, value: string, color: Color3, props: { [string]: any }?): TextLabel
+	local label = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = value,
+		TextColor3 = color,
+		TextScaled = true,
+		Font = Enum.Font.FredokaOne,
+	}, parent)
+	if props then
+		for key, v in props do
+			(label :: any)[key] = v
+		end
+	end
+	return label
+end
+
+-- Springy UI bump using a UIScale.
+local function bump(guiObject: GuiObject)
+	local scale = guiObject:FindFirstChildOfClass("UIScale") or make("UIScale", {}, guiObject)
+	scale.Scale = 1.18
+	TweenService
+		:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+end
+
+function HudController.start()
+	local gui = make("ScreenGui", {
+		Name = "CozyHud",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	}, player:WaitForChild("PlayerGui"))
+
+	-- Credits -----------------------------------------------------------------
+	local credits = pill(
+		gui,
+		"Credits",
+		UDim2.fromOffset(170, 44),
+		UDim2.fromOffset(16, 16),
+		Vector2.zero,
+		Palette.NeonAmber
+	)
+	make("UIPadding", {
+		PaddingLeft = UDim.new(0, 14),
+		PaddingRight = UDim.new(0, 14),
+		PaddingTop = UDim.new(0, 6),
+		PaddingBottom = UDim.new(0, 6),
+	}, credits)
+	local creditsLabel = text(credits, "0 cr", Palette.Cream, { TextXAlignment = Enum.TextXAlignment.Left })
+
+	local function refreshCredits()
+		local value = (player:GetAttribute("Credits") :: number?) or 0
+		creditsLabel.Text = `◆ {value} cr`
+		bump(credits)
+	end
+	player:GetAttributeChangedSignal("Credits"):Connect(refreshCredits)
+	refreshCredits()
+
+	-- Clock -------------------------------------------------------------------
+	local clock = pill(
+		gui,
+		"Clock",
+		UDim2.fromOffset(120, 44),
+		UDim2.new(1, -16, 0, 16),
+		Vector2.new(1, 0),
+		Palette.NeonPurple
+	)
+	make("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, clock)
+	local clockLabel = text(clock, "--:--", Palette.Cream, { Font = Enum.Font.Michroma })
+	local lastMinute = -1
+	RunService.Heartbeat:Connect(function()
+		local t = Lighting.ClockTime
+		local hours = math.floor(t)
+		local minutes = math.floor((t - hours) * 60)
+		if minutes ~= lastMinute then
+			lastMinute = minutes
+			clockLabel.Text = string.format("%02d:%02d", hours, minutes)
+		end
+	end)
+
+	-- Inventory ---------------------------------------------------------------
+	local bar = make("Frame", {
+		Name = "Inventory",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -16),
+		Size = UDim2.fromOffset(0, 46),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundTransparency = 1,
+	}, gui)
+	make("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 10),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, bar)
+
+	for order, id in ItemsModule.ItemOrder do
+		local item = ItemsModule.Items[id]
+		local chip = pill(bar, id, UDim2.fromOffset(150, 46), UDim2.new(), Vector2.zero, item.Color)
+		chip.LayoutOrder = order
+		local dot = make("Frame", {
+			Size = UDim2.fromOffset(18, 18),
+			Position = UDim2.new(0, 14, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundColor3 = item.Color,
+		}, chip)
+		make("UICorner", { CornerRadius = UDim.new(1, 0) }, dot)
+		local label = text(chip, "", Palette.Cream, {
+			Size = UDim2.new(1, -44, 0.62, 0),
+			Position = UDim2.new(0, 38, 0.19, 0),
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		local attr = `Inv_{id}`
+		local function refresh()
+			local count = (player:GetAttribute(attr) :: number?) or 0
+			label.Text = `{item.Name}  {count}`
+			chip.BackgroundTransparency = if count > 0 then 0.15 else 0.5
+			bump(chip)
+		end
+		player:GetAttributeChangedSignal(attr):Connect(refresh)
+		refresh()
+	end
+
+	-- Controls hint (fades after a while) --------------------------------------
+	local hint = text(gui, "Z / C rotate  ·  wheel zoom  ·  V camera", Palette.Lilac, {
+		Size = UDim2.fromOffset(420, 22),
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -70),
+		TextTransparency = 0.2,
+	})
+	task.delay(12, function()
+		TweenService:Create(hint, TweenInfo.new(2), { TextTransparency = 1 }):Play()
+	end)
+
+	-- Toasts ------------------------------------------------------------------
+	local toasts = make("Frame", {
+		Name = "Toasts",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 16),
+		Size = UDim2.fromOffset(520, 200),
+		BackgroundTransparency = 1,
+	}, gui)
+	make("UIListLayout", {
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, toasts)
+	local toastCount = 0
+
+	local toastRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Toast") :: RemoteEvent
+	toastRemote.OnClientEvent:Connect(function(message: string, tone: string)
+		toastCount += 1
+		local color = TONES[tone] or Palette.NeonCyan
+		local toast = pill(toasts, "Toast", UDim2.fromOffset(0, 38), UDim2.new(), Vector2.zero, color)
+		toast.AutomaticSize = Enum.AutomaticSize.X
+		toast.LayoutOrder = toastCount
+		make("UIPadding", { PaddingLeft = UDim.new(0, 18), PaddingRight = UDim.new(0, 18) }, toast)
+		local label = text(toast, message, Palette.Cream, {
+			Size = UDim2.fromScale(0, 1),
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextScaled = false,
+			TextSize = 20,
+		})
+		local scale = make("UIScale", { Scale = 0.2 }, toast)
+		TweenService
+			:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+			:Play()
+
+		-- Keep the stack short.
+		local children = {}
+		for _, child in toasts:GetChildren() do
+			if child:IsA("Frame") then
+				table.insert(children, child)
+			end
+		end
+		if #children > 3 then
+			table.sort(children, function(a, b)
+				return a.LayoutOrder < b.LayoutOrder
+			end)
+			children[1]:Destroy()
+		end
+
+		task.delay(3.2, function()
+			if not toast.Parent then
+				return
+			end
+			local out = TweenService:Create(
+				scale,
+				TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+				{ Scale = 0 }
+			)
+			TweenService:Create(label, TweenInfo.new(0.25), { TextTransparency = 1 }):Play()
+			out:Play()
+			out.Completed:Wait()
+			toast:Destroy()
+		end)
+	end)
+end
+
+return HudController
+]=])
+
+install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "PlantVisuals", "ModuleScript", [=[
+--!strict
+-- Draws the crops in each rooftop planter from its "Crop" + "Stage" attributes and pops them
+-- in with a spring every time they grow. Stages: 0 empty, 1 sprout, 2 leafy, 3 ripe.
+
+local CollectionService = game:GetService("CollectionService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Juice = require(Shared.Juice)
+local Palette = require(Shared.Palette)
+local ItemsModule = require(Shared.Items)
+
+local PlantVisuals = {}
+
+local function bit(
+	parent: Instance,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	shape: Enum.PartType?,
+	glow: boolean?
+): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = if glow then Enum.Material.Neon else Enum.Material.SmoothPlastic
+	p.Shape = shape or Enum.PartType.Block
+	p.Parent = parent
+	return p
+end
+
+-- One little plant at `origin` (on the soil surface).
+local function sprout(model: Model, origin: CFrame, crop: string, stage: number, rng: Random)
+	local fruit = ItemsModule.Items[crop].Color
+	local tilt = CFrame.Angles(
+		rng:NextNumber(-0.15, 0.15),
+		rng:NextNumber(0, math.pi * 2),
+		rng:NextNumber(-0.15, 0.15)
+	)
+	local base = origin * tilt
+
+	if stage == 1 then
+		bit(model, Vector3.new(0.5, 0.5, 0.5), base * CFrame.new(0, 0.2, 0), Palette.Leaf, Enum.PartType.Ball)
+		return
+	end
+
+	local height = if stage == 2 then 1.2 else 1.8
+	bit(model, Vector3.new(0.25, height, 0.25), base * CFrame.new(0, height / 2, 0), Palette.Leaf)
+	for i = 0, 2 do
+		local a = i * math.pi * 2 / 3
+		bit(
+			model,
+			Vector3.new(0.9, 0.12, 0.45),
+			base
+				* CFrame.new(0, height * 0.55, 0)
+				* CFrame.Angles(0, a, math.rad(25))
+				* CFrame.new(0.45, 0, 0),
+			Palette.Leaf
+		)
+	end
+
+	if stage >= 3 then
+		if crop == "Glowshroom" then
+			bit(model, Vector3.new(0.3, 0.6, 0.3), base * CFrame.new(0, height + 0.2, 0), Palette.Cream)
+			local cap = bit(
+				model,
+				Vector3.new(0.6, 1.3, 1.3),
+				base * CFrame.new(0, height + 0.55, 0) * CFrame.Angles(0, 0, math.rad(90)),
+				fruit,
+				Enum.PartType.Cylinder,
+				true
+			)
+			cap.Transparency = 0.1
+		elseif crop == "EmberChili" then
+			for _, side in { -1, 1 } do
+				bit(
+					model,
+					Vector3.new(0.3, 0.8, 0.3),
+					base * CFrame.new(side * 0.35, height * 0.6, 0) * CFrame.Angles(0, 0, side * 0.3),
+					fruit,
+					nil,
+					true
+				)
+			end
+		else -- Scallion: glowing stalk tips
+			bit(
+				model,
+				Vector3.new(0.35, 0.35, 0.35),
+				base * CFrame.new(0, height + 0.1, 0),
+				fruit,
+				Enum.PartType.Ball,
+				true
+			)
+		end
+	end
+end
+
+local function render(planter: Model)
+	local old = planter:FindFirstChild("Plants")
+	if old then
+		old:Destroy()
+	end
+	local soil = planter:FindFirstChild("Soil") :: BasePart?
+	if not soil then
+		return
+	end
+	local oldGlow = soil:FindFirstChild("RipeGlow")
+	if oldGlow then
+		oldGlow:Destroy()
+	end
+	local stage = (planter:GetAttribute("Stage") :: number?) or 0
+	if stage <= 0 then
+		return
+	end
+	local crop = planter:GetAttribute("Crop") :: string
+
+	local plants = Instance.new("Model")
+	plants.Name = "Plants"
+	-- Stable per-planter seed so the plants don't reshuffle every stage.
+	local rng = Random.new(#planter.Name * 7919 + math.floor(soil.Position.X * 13 + soil.Position.Z))
+	local top = soil.CFrame * CFrame.new(0, soil.Size.Y / 2, 0)
+	for _, offset in
+		{
+			Vector3.new(-1.4, 0, -1),
+			Vector3.new(1.3, 0, -0.9),
+			Vector3.new(-1.2, 0, 1.1),
+			Vector3.new(1.4, 0, 1),
+			Vector3.new(0, 0, 0),
+		}
+	do
+		sprout(plants, top * CFrame.new(offset), crop, stage, rng)
+	end
+
+	if stage >= 3 then
+		local light = Instance.new("PointLight")
+		light.Color = ItemsModule.Items[crop].Color
+		light.Range = 6
+		light.Brightness = 1.2
+		light.Name = "RipeGlow"
+		light.Parent = soil
+	end
+
+	-- Scale from the soil surface so plants grow up out of the dirt.
+	plants.WorldPivot = top
+	plants.Parent = planter
+	Juice.popIn(plants)
+end
+
+function PlantVisuals.start()
+	local function track(inst: Instance)
+		if not inst:IsA("Model") then
+			return
+		end
+		render(inst)
+		inst:GetAttributeChangedSignal("Stage"):Connect(function()
+			render(inst)
+		end)
+	end
+	for _, inst in CollectionService:GetTagged("Planter") do
+		task.spawn(track, inst)
+	end
+	CollectionService:GetInstanceAddedSignal("Planter"):Connect(track)
+end
+
+return PlantVisuals
+]=])
+
+install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "RainController", "ModuleScript", [=[
+--!strict
+-- Soft, constant drizzle that follows the camera, plus optional ambience loops.
+-- Rain is the bridge between the two moods: it's cozy (listen to it from under the awning)
+-- and it's cyberpunk (neon smeared on wet asphalt).
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Palette = require(Shared.Palette)
+
+local RainController = {}
+
+local function loop(name: string, id: string, volume: number)
+	if id == "" then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.Name = name
+	sound.SoundId = id
+	sound.Looped = true
+	sound.Volume = volume
+	sound.Parent = SoundService
+	sound:Play()
+end
+
+function RainController.start()
+	local emitterPart = Instance.new("Part")
+	emitterPart.Name = "RainCloud"
+	emitterPart.Anchored = true
+	emitterPart.CanCollide = false
+	emitterPart.CanQuery = false
+	emitterPart.CanTouch = false
+	emitterPart.Transparency = 1
+	emitterPart.Size = Vector3.new(120, 1, 120)
+	emitterPart.Parent = workspace
+
+	local rain = Instance.new("ParticleEmitter")
+	rain.Name = "Rain"
+	rain.EmissionDirection = Enum.NormalId.Bottom
+	rain.Rate = 600
+	rain.Lifetime = NumberRange.new(0.9, 1.1)
+	rain.Speed = NumberRange.new(70, 80)
+	rain.SpreadAngle = Vector2.new(4, 4)
+	rain.Size = NumberSequence.new(0.12)
+	-- Stretch each particle into a streak. Tune in Studio; swap in a real streak texture later.
+	rain.Squash = NumberSequence.new(2.5)
+	rain.Orientation = Enum.ParticleOrientation.VelocityParallel
+	rain.Transparency = NumberSequence.new(0.55)
+	rain.Color = ColorSequence.new(Palette.Sky)
+	rain.LightEmission = 0.4
+	rain.LightInfluence = 0.6
+	rain.Parent = emitterPart
+
+	loop("Rain", Config.Sounds.Rain, 0.35)
+	loop("CityHum", Config.Sounds.CityHum, 0.2)
+
+	local player = Players.LocalPlayer
+	RunService.Heartbeat:Connect(function()
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local center = if root then root.Position else workspace.CurrentCamera.Focus.Position
+		emitterPart.CFrame = CFrame.new(center.X, center.Y + 60, center.Z)
+	end)
+end
+
+return RainController
+]=])
+
+print("[ProjectCozy] Installed! Press Play. (If Lighting isn't Future, set Lighting > Technology = Future.)")
