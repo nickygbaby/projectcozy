@@ -1,77 +1,37 @@
--- ===========================================================================
--- PROJECT COZY: one-paste installer for Roblox Studio
--- EASIEST: skip this file and open studio/ProjectCozy.rbxlx in Studio instead.
---
--- HOW TO USE (this file is too big for the Command Bar, so install it as a plugin):
---   1. Open a new Baseplate in Studio and delete the "Baseplate" part in Workspace.
---   2. In Explorer, add a Script anywhere (e.g. ServerScriptService) and open it.
---   3. Select all of its text, then paste this ENTIRE file over it.
---   4. Right-click the Script in Explorer -> "Save as Local Plugin...", then Save.
---   5. Plugins tab -> "Project Cozy" -> click "Install". Delete the Script from step 2.
---   6. Press Play.
--- Safe to run again: it replaces the previous install.
--- GENERATED from src/ by studio/build_installer.py. Do not edit by hand.
--- ===========================================================================
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
-local StarterPlayer = game:GetService("StarterPlayer")
-local Lighting = game:GetService("Lighting")
-
-local function folder(path: string): Instance
-	local node: Instance = game
-	for _, name in string.split(path, "/") do
-		local child = node:FindFirstChild(name)
-		if not child then
-			if node == game then
-				child = game:GetService(name)
-			else
-				child = Instance.new("Folder")
-				child.Name = name
-				child.Parent = node
-			end
-		end
-		node = child
-	end
-	return node
-end
-
-local function install(path: string, name: string, className: string, source: string)
-	local s = Instance.new(className)
-	s.Name = name
-	s.Source = source
-	s.Parent = folder(path)
-end
-
-local function installAll()
--- Clean out any previous install
-for _, pair in {
-	{ ReplicatedStorage, "Shared" },
-	{ ReplicatedStorage, "Remotes" },
-	{ ServerScriptService, "Server" },
-	{ StarterPlayer.StarterPlayerScripts, "Client" },
-} do
-	local old = pair[1]:FindFirstChild(pair[2])
-	if old then
-		old:Destroy()
-	end
-end
-
-local remotes = Instance.new("Folder")
-remotes.Name = "Remotes"
-for _, name in { "Toast", "Pop" } do
-	local r = Instance.new("RemoteEvent")
-	r.Name = name
-	r.Parent = remotes
-end
-remotes.Parent = ReplicatedStorage
-
-pcall(function()
-	Lighting.Technology = Enum.Technology.Future
-end)
-
-install("ReplicatedStorage/Shared", "Config", "ModuleScript", [=[
---!strict
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <token name="Technology">4</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Remotes</string>
+      </Properties>
+      <Item class="RemoteEvent" referent="3">
+        <Properties>
+          <string name="Name">Pop</string>
+        </Properties>
+      </Item>
+      <Item class="RemoteEvent" referent="4">
+        <Properties>
+          <string name="Name">Toast</string>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="Folder" referent="5">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[--!strict
 -- Every tunable number lives here so designers can tweak feel without touching systems.
 
 local Config = {
@@ -122,70 +82,13 @@ local Config = {
 }
 
 return Config
-]=])
-
-install("ReplicatedStorage/Shared", "Palette", "ModuleScript", [=[
---!strict
--- The Lantern Row palette: soft "toybox" colors for anything you touch, hot neon for
--- anything that glows. Rule of thumb: cozy colors on surfaces, neon only on light sources.
-
-local function hex(code: string): Color3
-	return Color3.fromHex(code)
-end
-
-local Palette = {
-	-- Night sky & city mass
-	Ink = hex("#0f0c1f"),
-	Indigo = hex("#1b1538"),
-	Violet = hex("#2e2257"),
-	Asphalt = hex("#221d36"),
-	Concrete = hex("#3c3558"),
-	Brick = hex("#5a3f63"),
-
-	-- Toybox (cozy, matte, rounded)
-	Cream = hex("#fff1d6"),
-	Peach = hex("#ffb59e"),
-	Coral = hex("#ff8a80"),
-	Mint = hex("#9ff2c4"),
-	Sky = hex("#9fd8ff"),
-	Butter = hex("#ffe38a"),
-	Lilac = hex("#c7b3ff"),
-	Wood = hex("#8a5a44"),
-	Soil = hex("#3b2a2a"),
-	Leaf = hex("#5fd38a"),
-
-	-- Neon (emissive only)
-	NeonPink = hex("#ff4fa3"),
-	NeonCyan = hex("#3ff0ff"),
-	NeonLime = hex("#b6ff5a"),
-	NeonAmber = hex("#ffb347"),
-	NeonPurple = hex("#a970ff"),
-	NeonRed = hex("#ff3b5c"),
-}
-
-Palette.NeonSet = {
-	Palette.NeonPink,
-	Palette.NeonCyan,
-	Palette.NeonLime,
-	Palette.NeonAmber,
-	Palette.NeonPurple,
-}
-
-Palette.ToySet = {
-	Palette.Cream,
-	Palette.Peach,
-	Palette.Coral,
-	Palette.Mint,
-	Palette.Sky,
-	Palette.Butter,
-	Palette.Lilac,
-}
-
-return Palette
-]=])
-
-install("ReplicatedStorage/Shared", "Items", "ModuleScript", [=[
---!strict
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">Items</string>
+          <string name="Source"><![CDATA[--!strict
 -- Ingredients and the dishes they make.
 
 local Palette = require(script.Parent.Palette)
@@ -259,10 +162,13 @@ return {
 	RecipeOrder = RecipeOrder,
 	describeNeeds = describeNeeds,
 }
-]=])
-
-install("ReplicatedStorage/Shared", "Juice", "ModuleScript", [=[
---!strict
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">Juice</string>
+          <string name="Source"><![CDATA[--!strict
 -- Juice: the springy squash-and-stretch that makes the world feel like a toy.
 -- Client-side only. The server owns state; the client makes it bounce.
 --
@@ -478,10 +384,87 @@ Juice.newSpring = newSpring
 Juice.stepSpring = stepSpring
 
 return Juice
-]=])
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="9">
+        <Properties>
+          <string name="Name">Palette</string>
+          <string name="Source"><![CDATA[--!strict
+-- The Lantern Row palette: soft "toybox" colors for anything you touch, hot neon for
+-- anything that glows. Rule of thumb: cozy colors on surfaces, neon only on light sources.
 
-install("ServerScriptService/Server", "Main", "Script", [=[
---!strict
+local function hex(code: string): Color3
+	return Color3.fromHex(code)
+end
+
+local Palette = {
+	-- Night sky & city mass
+	Ink = hex("#0f0c1f"),
+	Indigo = hex("#1b1538"),
+	Violet = hex("#2e2257"),
+	Asphalt = hex("#221d36"),
+	Concrete = hex("#3c3558"),
+	Brick = hex("#5a3f63"),
+
+	-- Toybox (cozy, matte, rounded)
+	Cream = hex("#fff1d6"),
+	Peach = hex("#ffb59e"),
+	Coral = hex("#ff8a80"),
+	Mint = hex("#9ff2c4"),
+	Sky = hex("#9fd8ff"),
+	Butter = hex("#ffe38a"),
+	Lilac = hex("#c7b3ff"),
+	Wood = hex("#8a5a44"),
+	Soil = hex("#3b2a2a"),
+	Leaf = hex("#5fd38a"),
+
+	-- Neon (emissive only)
+	NeonPink = hex("#ff4fa3"),
+	NeonCyan = hex("#3ff0ff"),
+	NeonLime = hex("#b6ff5a"),
+	NeonAmber = hex("#ffb347"),
+	NeonPurple = hex("#a970ff"),
+	NeonRed = hex("#ff3b5c"),
+}
+
+Palette.NeonSet = {
+	Palette.NeonPink,
+	Palette.NeonCyan,
+	Palette.NeonLime,
+	Palette.NeonAmber,
+	Palette.NeonPurple,
+}
+
+Palette.ToySet = {
+	Palette.Cream,
+	Palette.Peach,
+	Palette.Coral,
+	Palette.Mint,
+	Palette.Sky,
+	Palette.Butter,
+	Palette.Lilac,
+}
+
+return Palette
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="10">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="11">
+      <Properties>
+        <string name="Name">Server</string>
+      </Properties>
+      <Item class="Script" referent="12">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[--!strict
 -- Server entry point. The server owns state (data, timers, prompts); clients own visuals.
 
 local Services = script.Parent.Services
@@ -502,10 +485,17 @@ StallService.start(district.CustomerSpots, district.StallPot)
 InteractionsService.start(district.Vending, district.RoboCat)
 
 print("[ProjectCozy] Lantern Row is open. Stay cozy, choom.")
-]=])
-
-install("ServerScriptService/Server/Services", "AtmosphereService", "ModuleScript", [=[
---!strict
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Folder" referent="13">
+        <Properties>
+          <string name="Name">Services</string>
+        </Properties>
+        <Item class="ModuleScript" referent="14">
+          <Properties>
+            <string name="Name">AtmosphereService</string>
+            <string name="Source"><![CDATA[--!strict
 -- Lighting, haze and the day/night cycle. The look we want: a soft-focus toy diorama
 -- (Tiny Eden) lit by smoggy neon (Cyberpunk 2077 / Nivalis). Nights are long and purple,
 -- days are brief, hazy and a little sickly-teal.
@@ -666,10 +656,13 @@ function AtmosphereService.start()
 end
 
 return AtmosphereService
-]=])
-
-install("ServerScriptService/Server/Services", "DistrictBuilder", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
+          <Properties>
+            <string name="Name">DistrictBuilder</string>
+            <string name="Source"><![CDATA[--!strict
 -- Builds Lantern Row, the starter district, out of primitive parts so the game is playable
 -- the moment you sync it. This is a greybox: every piece here is meant to be swapped for
 -- chunky, bevelled art meshes later (see docs/ART_DIRECTION.md) while keeping the same
@@ -1474,10 +1467,13 @@ function DistrictBuilder.build(): District
 end
 
 return DistrictBuilder
-]=])
-
-install("ServerScriptService/Server/Services", "GardenService", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="16">
+          <Properties>
+            <string name="Name">GardenService</string>
+            <string name="Source"><![CDATA[--!strict
 -- Rooftop planters: Plant -> (grows through 3 stages) -> Harvest.
 -- The server only tracks state on attributes ("Crop", "Stage"); the client draws the plants
 -- and does all the bouncing (see client/Controllers/PlantVisuals).
@@ -1556,10 +1552,13 @@ function GardenService.start(planters: { Model })
 end
 
 return GardenService
-]=])
-
-install("ServerScriptService/Server/Services", "InteractionsService", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">InteractionsService</string>
+            <string name="Source"><![CDATA[--!strict
 -- Small one-off interactions around the street: the noodle vending machine and Byte the cat.
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -1604,10 +1603,13 @@ function InteractionsService.start(vending: BasePart, cat: Model)
 end
 
 return InteractionsService
-]=])
-
-install("ServerScriptService/Server/Services", "Notify", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="18">
+          <Properties>
+            <string name="Name">Notify</string>
+            <string name="Source"><![CDATA[--!strict
 -- Tiny wrapper around the client-facing remotes.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1629,10 +1631,13 @@ function Notify.pop(target: Instance, strength: number?)
 end
 
 return Notify
-]=])
-
-install("ServerScriptService/Server/Services", "PlayerDataService", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="19">
+          <Properties>
+            <string name="Name">PlayerDataService</string>
+            <string name="Source"><![CDATA[--!strict
 -- Owns each player's credits and inventory. Saves to DataStore and mirrors values onto
 -- player attributes ("Credits", "Inv_<ItemId>") so the client HUD can read them for free.
 
@@ -1848,10 +1853,13 @@ function PlayerDataService.start()
 end
 
 return PlayerDataService
-]=])
-
-install("ServerScriptService/Server/Services", "StallService", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="20">
+          <Properties>
+            <string name="Name">StallService</string>
+            <string name="Source"><![CDATA[--!strict
 -- Lucky Byte Noodles. Chibi customers pop onto the stools with an order bubble; serve them
 -- if you have the ingredients. No fail state: if you're slow they just wave and wander off.
 
@@ -2089,29 +2097,32 @@ function StallService.start(spots: { CFrame }, pot: BasePart)
 end
 
 return StallService
-]=])
-
-install("StarterPlayer/StarterPlayerScripts/Client", "Main", "LocalScript", [=[
---!strict
--- Client entry point. Everything here is presentation: camera, juice, HUD, weather.
-
-local Controllers = script.Parent:WaitForChild("Controllers")
-
-local controllers = {
-	require(Controllers:WaitForChild("CameraController")),
-	require(Controllers:WaitForChild("AmbientController")),
-	require(Controllers:WaitForChild("PlantVisuals")),
-	require(Controllers:WaitForChild("HudController")),
-	require(Controllers:WaitForChild("RainController")),
-}
-
-for _, controller in controllers do
-	task.spawn(controller.start)
-end
-]=])
-
-install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "AmbientController", "ModuleScript", [=[
---!strict
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="21">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="22">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="23">
+        <Properties>
+          <string name="Name">Client</string>
+        </Properties>
+        <Item class="Folder" referent="24">
+          <Properties>
+            <string name="Name">Controllers</string>
+          </Properties>
+          <Item class="ModuleScript" referent="25">
+            <Properties>
+              <string name="Name">AmbientController</string>
+              <string name="Source"><![CDATA[--!strict
 -- Client-side life: things that bob, spin, flicker and pop. Driven entirely by tags and
 -- attributes the server sets, so art can be swapped without touching code.
 --
@@ -2314,10 +2325,13 @@ function AmbientController.start()
 end
 
 return AmbientController
-]=])
-
-install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "CameraController", "ModuleScript", [=[
---!strict
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="26">
+            <Properties>
+              <string name="Name">CameraController</string>
+              <string name="Source"><![CDATA[--!strict
 -- Cozy diorama camera: high angle, narrow FOV, soft tilt-shift blur, smooth follow.
 -- This is the single biggest lever for the "Tiny Eden" look: the city reads as a toy you
 -- could hold in your hands.
@@ -2484,10 +2498,13 @@ function CameraController.start()
 end
 
 return CameraController
-]=])
-
-install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "HudController", "ModuleScript", [=[
---!strict
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="27">
+            <Properties>
+              <string name="Name">HudController</string>
+              <string name="Source"><![CDATA[--!strict
 -- The HUD: soft rounded "sticker" UI (cozy) with neon outlines (cyber).
 -- Reads credits/inventory straight off player attributes set by PlayerDataService.
 
@@ -2745,10 +2762,13 @@ function HudController.start()
 end
 
 return HudController
-]=])
-
-install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "PlantVisuals", "ModuleScript", [=[
---!strict
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="28">
+            <Properties>
+              <string name="Name">PlantVisuals</string>
+              <string name="Source"><![CDATA[--!strict
 -- Draws the crops in each rooftop planter from its "Crop" + "Stage" attributes and pops them
 -- in with a spring every time they grow. Stages: 0 empty, 1 sprout, 2 leafy, 3 ripe.
 
@@ -2917,10 +2937,13 @@ function PlantVisuals.start()
 end
 
 return PlantVisuals
-]=])
-
-install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "RainController", "ModuleScript", [=[
---!strict
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="29">
+            <Properties>
+              <string name="Name">RainController</string>
+              <string name="Source"><![CDATA[--!strict
 -- Soft, constant drizzle that follows the camera, plus optional ambience loops.
 -- Rain is the bridge between the two moods: it's cozy (listen to it from under the awning)
 -- and it's cyberpunk (neon smeared on wet asphalt).
@@ -2989,27 +3012,33 @@ function RainController.start()
 end
 
 return RainController
-]=])
+]]></string>
+            </Properties>
+          </Item>
+        </Item>
+        <Item class="LocalScript" referent="30">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[--!strict
+-- Client entry point. Everything here is presentation: camera, juice, HUD, weather.
 
-print("[ProjectCozy] Installed! Press Play. (If Lighting isn't Future, set Lighting > Technology = Future.)")
-end
+local Controllers = script.Parent:WaitForChild("Controllers")
 
-local pluginRef = (getfenv() :: any).plugin
-if pluginRef then
-	-- Running as a plugin: only install when the button is clicked.
-	if game:GetService("RunService"):IsRunning() then
-		return
-	end
-	local toolbar = pluginRef:CreateToolbar("Project Cozy")
-	local button = toolbar:CreateButton("Install", "Install Project Cozy into this place", "")
-	button.ClickableWhenViewportHidden = true
-	button.Click:Connect(function()
-		installAll()
-		game:GetService("ChangeHistoryService"):SetWaypoint("Install Project Cozy")
-		button:SetActive(false)
-	end)
-elseif game:GetService("RunService"):IsRunning() then
-	warn("[ProjectCozy] This installer is running as a game script. Delete it, then use the plugin or Command Bar.")
-else
-	installAll()
+local controllers = {
+	require(Controllers:WaitForChild("CameraController")),
+	require(Controllers:WaitForChild("AmbientController")),
+	require(Controllers:WaitForChild("PlantVisuals")),
+	require(Controllers:WaitForChild("HudController")),
+	require(Controllers:WaitForChild("RainController")),
+}
+
+for _, controller in controllers do
+	task.spawn(controller.start)
 end
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+</roblox>

@@ -12,3 +12,4 @@ sourcemap.json
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+!studio/ProjectCozy.rbxlx

@@ -7,16 +7,20 @@ street, grow glowing ingredients on the roof and pet the robo-cat.
 - 📖 [Game design](docs/GAME_DESIGN.md): pitch, pillars, core loop, roadmap
 - 🎨 [Art & animation direction](docs/ART_DIRECTION.md): shapes, palette, lighting, the "everything bounces" rules
 
-## Quick start: copy/paste (no tools needed)
+## Quick start (no tools needed)
 
-1. Open a **new Baseplate** in Studio and delete the `Baseplate` part in Workspace.
-2. Open **View → Command Bar**.
-3. Copy all of [`studio/InstallProjectCozy.lua`](studio/InstallProjectCozy.lua), paste it into
-   the Command Bar and press **Enter**.
-4. Press **Play**.
+**Easiest: open the place file.** Download [`studio/ProjectCozy.rbxlx`](studio/ProjectCozy.rbxlx),
+open it in Roblox Studio (File → Open from File) and press **Play**.
 
-It creates every script, module and remote in the right place, and it's safe to run again.
-After changing anything in `src/`, rebuild it with `python3 studio/build_installer.py .`.
+**Or install into an existing place.** [`studio/InstallProjectCozy.lua`](studio/InstallProjectCozy.lua)
+is too big for the Command Bar, so install it as a plugin:
+
+1. Add a Script anywhere, open it and paste the whole installer over its contents.
+2. Right-click the Script → **Save as Local Plugin…**, then delete the Script.
+3. **Plugins** tab → **Project Cozy** → **Install**, then press **Play**.
+
+After changing `src/`, rebuild both with `rojo build -o studio/ProjectCozy.rbxlx` and
+`python3 studio/build_installer.py .`.
 
 ## Getting it into Roblox Studio with Rojo (for ongoing development)
 

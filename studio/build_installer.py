@@ -16,11 +16,15 @@ for f in sorted(os.listdir(f"{root}/src/client/Controllers")):
 out = []
 out.append('''-- ===========================================================================
 -- PROJECT COZY: one-paste installer for Roblox Studio
--- HOW TO USE:
+-- EASIEST: skip this file and open studio/ProjectCozy.rbxlx in Studio instead.
+--
+-- HOW TO USE (this file is too big for the Command Bar, so install it as a plugin):
 --   1. Open a new Baseplate in Studio and delete the "Baseplate" part in Workspace.
---   2. View tab -> Command Bar.
---   3. Paste this ENTIRE file into the Command Bar and press Enter.
---   4. Press Play.
+--   2. In Explorer, add a Script anywhere (e.g. ServerScriptService) and open it.
+--   3. Select all of its text, then paste this ENTIRE file over it.
+--   4. Right-click the Script in Explorer -> "Save as Local Plugin...", then Save.
+--   5. Plugins tab -> "Project Cozy" -> click "Install". Delete the Script from step 2.
+--   6. Press Play.
 -- Safe to run again: it replaces the previous install.
 -- GENERATED from src/ by studio/build_installer.py. Do not edit by hand.
 -- ===========================================================================
@@ -29,19 +33,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local Lighting = game:GetService("Lighting")
-
--- Clean out any previous install
-for _, pair in {
-	{ ReplicatedStorage, "Shared" },
-	{ ReplicatedStorage, "Remotes" },
-	{ ServerScriptService, "Server" },
-	{ StarterPlayer.StarterPlayerScripts, "Client" },
-} do
-	local old = pair[1]:FindFirstChild(pair[2])
-	if old then
-		old:Destroy()
-	end
-end
 
 local function folder(path: string): Instance
 	local node: Instance = game
@@ -68,6 +59,20 @@ local function install(path: string, name: string, className: string, source: st
 	s.Parent = folder(path)
 end
 
+local function installAll()
+-- Clean out any previous install
+for _, pair in {
+	{ ReplicatedStorage, "Shared" },
+	{ ReplicatedStorage, "Remotes" },
+	{ ServerScriptService, "Server" },
+	{ StarterPlayer.StarterPlayerScripts, "Client" },
+} do
+	local old = pair[1]:FindFirstChild(pair[2])
+	if old then
+		old:Destroy()
+	end
+end
+
 local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
 for _, name in { "Toast", "Pop" } do
@@ -87,6 +92,29 @@ for rel, parent, name, cls in entries:
     while ("]" + "="*level + "]") in src: level += 1
     eq = "="*level
     out.append(f'\ninstall("{parent}", "{name}", "{cls}", [{eq}[\n{src}]{eq}])\n')
-out.append('\nprint("[ProjectCozy] Installed! Press Play. (If Lighting isn\'t Future, set Lighting > Technology = Future.)")\n')
+out.append('''
+print("[ProjectCozy] Installed! Press Play. (If Lighting isn't Future, set Lighting > Technology = Future.)")
+end
+
+local pluginRef = (getfenv() :: any).plugin
+if pluginRef then
+	-- Running as a plugin: only install when the button is clicked.
+	if game:GetService("RunService"):IsRunning() then
+		return
+	end
+	local toolbar = pluginRef:CreateToolbar("Project Cozy")
+	local button = toolbar:CreateButton("Install", "Install Project Cozy into this place", "")
+	button.ClickableWhenViewportHidden = true
+	button.Click:Connect(function()
+		installAll()
+		game:GetService("ChangeHistoryService"):SetWaypoint("Install Project Cozy")
+		button:SetActive(false)
+	end)
+elseif game:GetService("RunService"):IsRunning() then
+	warn("[ProjectCozy] This installer is running as a game script. Delete it, then use the plugin or Command Bar.")
+else
+	installAll()
+end
+''')
 open(f"{root}/studio/InstallProjectCozy.lua","w").write("".join(out))
 print(len(entries), "scripts")
