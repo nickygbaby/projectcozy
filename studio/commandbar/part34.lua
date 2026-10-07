@@ -57,6 +57,7 @@ local function open(newMode: string, at: BasePart)
 mode, anchor = newMode, at
 render()
 gui.Enabled = true
+close.Modal = true -- unlock the first-person mouse
 scale.Scale = 0.6
 TweenService
 :Create( scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 } )
@@ -65,18 +66,19 @@ end
 local function hide()
 mode, anchor = nil, nil
 gui.Enabled = false
+close.Modal = false
 end
 close.Activated:Connect(hide)
-ProximityPromptService.PromptTriggered:Connect(function(promptObj, who)
-if who ~= player then return
+local function toggle(newMode: string, at: BasePart)
+if mode == newMode then hide()
+else
+open(newMode, at)
 end
-local parent = promptObj.Parent
-if not (parent and parent:IsA("BasePart")) then return
 end
-if promptObj.Name == "TerminalPrompt" then open("orders", parent) elseif promptObj.Name == "KitchenPrompt" then open("kitchen", parent)
-end
-end)
-player.AttributeChanged:Connect(function(name)
+local function addTarget(inst: Instance)
+local detector = inst:FindFirstChildOfClass("ClickDetector")
+local panelMode = inst:GetAttribute("Panel")
+if inst:IsA("BasePart") and detector and typeof(panelMode) == "string" then detector.MouseClick:Connect(function(who)
 ]=])
 S:SetAttribute("CozyNext",35)
 print("Project Cozy: part 34/41 done. Paste part 35 next.")

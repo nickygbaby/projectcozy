@@ -4,6 +4,7 @@ if S:GetAttribute("CozyNext")~=33 then warn("Project Cozy: this is part 33, but 
 local function a(p,s) local o=game for _,n in string.split(p,"/") do o=o:FindFirstChild(n) end o.Source=o.Source..s end
 a("StarterPlayer/StarterPlayerScripts/Client/Controllers/HomePanels",[=[
 --!strict
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")

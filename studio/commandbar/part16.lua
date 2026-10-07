@@ -3,6 +3,10 @@ local S=game:GetService("ServerScriptService")
 if S:GetAttribute("CozyNext")~=16 then warn("Project Cozy: this is part 16, but part "..tostring(S:GetAttribute("CozyNext") or 1).." is next") return end
 local function a(p,s) local o=game for _,n in string.split(p,"/") do o=o:FindFirstChild(n) end o.Source=o.Source..s end
 a("ServerScriptService/Server/Services/DistrictBuilder",[=[
+make("ClickDetector", { MaxActivationDistance = 14 }, terminal)
+terminal:SetAttribute("Panel", "orders")
+terminal:AddTag("HomePanelTarget")
+local fridge = part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
 neon( home, "FridgeLED", Vector3.new(0.3, 0.3, 0.1), CFrame.new(-0.7, y0 + 5.2, zBack - 2.55), Palette.NeonLime )
 fridge:SetAttribute("SoundKey", "Fridge")
 fridge:AddTag("AudioEmitter")
@@ -59,9 +63,6 @@ vending:SetAttribute("SoundKey", "VendingHum")
 vending:AddTag("AudioEmitter")
 prompt(elevatorUp, "Go home", "Elevator", { Name = "ElevatorPrompt" })
 prompt(elevatorDown, "Go down", "Elevator", { Name = "ElevatorPrompt" })
-prompt(vending, "Buy Noodle Brick", "Vending", { Name = "BuyPrompt" })
-prompt(cat.PrimaryPart :: BasePart, "Pet", "Byte", { Name = "PetPrompt", MaxActivationDistance = 7 })
-root.Parent = workspace
 ]=])
 S:SetAttribute("CozyNext",17)
 print("Project Cozy: part 16/41 done. Paste part 17 next.")

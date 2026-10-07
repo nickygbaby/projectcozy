@@ -1026,7 +1026,10 @@ local function buildApartment(root: Model): Apartment
 		CFrame.new(-4.5, y0 + 3.35, zBack - 1.4),
 		Palette.Cream
 	)
-	prompt(counterTop, "Cook", "Kitchenette", { Name = "KitchenPrompt", MaxActivationDistance = 8 })
+	prompt(counterTop, "Cook", "Kitchenette", { Name = "KitchenPrompt", MaxActivationDistance = 10 })
+	make("ClickDetector", { MaxActivationDistance = 14 }, counterTop)
+	counterTop:SetAttribute("Panel", "kitchen")
+	counterTop:AddTag("HomePanelTarget")
 
 	-- Neighbor Net: a little wall terminal where the building posts requests.
 	local terminal = part(
@@ -1057,7 +1060,15 @@ local function buildApartment(root: Model): Apartment
 		{ Face = Enum.NormalId.Right, Color = Palette.NeonCyan, Range = 6, Brightness = 0.5 },
 		terminal
 	)
-	prompt(terminal, "Check requests", "Neighbor Net", { Name = "TerminalPrompt", MaxActivationDistance = 8 })
+	prompt(
+		terminal,
+		"Check requests",
+		"Neighbor Net",
+		{ Name = "TerminalPrompt", MaxActivationDistance = 10 }
+	)
+	make("ClickDetector", { MaxActivationDistance = 14 }, terminal)
+	terminal:SetAttribute("Panel", "orders")
+	terminal:AddTag("HomePanelTarget")
 	local fridge =
 		part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
 	neon(

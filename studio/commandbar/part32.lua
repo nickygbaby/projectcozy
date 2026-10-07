@@ -3,6 +3,21 @@ local S=game:GetService("ServerScriptService")
 if S:GetAttribute("CozyNext")~=32 then warn("Project Cozy: this is part 32, but part "..tostring(S:GetAttribute("CozyNext") or 1).." is next") return end
 local function a(p,s) local o=game for _,n in string.split(p,"/") do o=o:FindFirstChild(n) end o.Source=o.Source..s end
 a("StarterPlayer/StarterPlayerScripts/Client/Controllers/CameraController",[=[
+targetYaw += math.rad(cfg.RotateStep) * dir
+return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.Z, Enum.KeyCode.C, Enum.KeyCode.ButtonL1, Enum.KeyCode.ButtonR1)
+ContextActionService:BindAction("CozyToggleCamera", function(_, state)
+if state == Enum.UserInputState.Begin then enabled = not enabled
+apply()
+end
+return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.V)
+UserInputService.InputChanged:Connect(function(input, processed)
+if processed or not enabled then return
+end
+if input.UserInputType == Enum.UserInputType.MouseWheel then targetDistance = math.clamp(targetDistance - input.Position.Z * 6, cfg.MinDistance, cfg.MaxDistance)
+end
+end)
 player.CharacterAdded:Connect(function()
 task.defer(apply)
 end)

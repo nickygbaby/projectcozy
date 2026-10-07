@@ -1,8 +1,13 @@
 --!strict
 -- The two home screens: Neighbor Net (deliver requests) and the Kitchenette (cook jars).
--- Opened by the "TerminalPrompt" / "KitchenPrompt" prompts, closed with ✕ or by walking
--- away. The server validates every button press (HomeService).
+-- Opened by the "TerminalPrompt" / "KitchenPrompt" prompts (press E) or by clicking the
+-- terminal / counter itself (tag "HomePanelTarget"). Closed with ✕, by walking away, or
+-- by clicking the object again. The server validates every button press (HomeService).
+--
+-- Home is first person, which locks the mouse to the screen center. While a panel is open
+-- the close button is Modal, which frees the mouse so the buttons can be clicked.
 
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -227,6 +232,7 @@ function HomePanels.start()
 		mode, anchor = newMode, at
 		render()
 		gui.Enabled = true
+		close.Modal = true -- unlock the first-person mouse
 		scale.Scale = 0.6
 		TweenService
 			:Create(
@@ -240,8 +246,35 @@ function HomePanels.start()
 	local function hide()
 		mode, anchor = nil, nil
 		gui.Enabled = false
+		close.Modal = false
 	end
 	close.Activated:Connect(hide)
+
+	local function toggle(newMode: string, at: BasePart)
+		if mode == newMode then
+			hide()
+		else
+			open(newMode, at)
+		end
+	end
+
+	-- Click (or tap) the terminal / counter directly. In first person this hits whatever
+	-- is under the crosshair.
+	local function addTarget(inst: Instance)
+		local detector = inst:FindFirstChildOfClass("ClickDetector")
+		local panelMode = inst:GetAttribute("Panel")
+		if inst:IsA("BasePart") and detector and typeof(panelMode) == "string" then
+			detector.MouseClick:Connect(function(who)
+				if who == player then
+					toggle(panelMode, inst)
+				end
+			end)
+		end
+	end
+	for _, inst in CollectionService:GetTagged("HomePanelTarget") do
+		addTarget(inst)
+	end
+	CollectionService:GetInstanceAddedSignal("HomePanelTarget"):Connect(addTarget)
 
 	ProximityPromptService.PromptTriggered:Connect(function(promptObj, who)
 		if who ~= player then

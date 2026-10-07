@@ -61,7 +61,24 @@ dof.Name = "TiltShift"
 dof.FarIntensity = 0.2
 dof.NearIntensity = 0.25
 dof.Parent = camera
+local crosshairGui = Instance.new("ScreenGui")
+crosshairGui.Name = "Crosshair"
+crosshairGui.ResetOnSpawn = false
+crosshairGui.IgnoreGuiInset = true
+crosshairGui.Enabled = false
+local dot = Instance.new("Frame")
+dot.AnchorPoint = Vector2.new(0.5, 0.5)
+dot.Position = UDim2.fromScale(0.5, 0.5)
+dot.Size = UDim2.fromOffset(6, 6)
+dot.BackgroundColor3 = Color3.fromRGB(255, 241, 214)
+dot.BackgroundTransparency = 0.2
+dot.Parent = crosshairGui
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = dot
+crosshairGui.Parent = player:WaitForChild("PlayerGui")
 local function apply()
+crosshairGui.Enabled = atHome and Config.FirstPersonAtHome
 if atHome and Config.FirstPersonAtHome then camera.CameraType = Enum.CameraType.Custom
 player.CameraMode = Enum.CameraMode.LockFirstPerson
 camera.FieldOfView = 70
@@ -83,21 +100,6 @@ ContextActionService:BindAction("CozyRotate", function(_, state, input)
 if state ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass
 end
 local dir = if input.KeyCode == Enum.KeyCode.Z or input.KeyCode == Enum.KeyCode.ButtonL1 then -1 else 1
-targetYaw += math.rad(cfg.RotateStep) * dir
-return Enum.ContextActionResult.Sink
-end, false, Enum.KeyCode.Z, Enum.KeyCode.C, Enum.KeyCode.ButtonL1, Enum.KeyCode.ButtonR1)
-ContextActionService:BindAction("CozyToggleCamera", function(_, state)
-if state == Enum.UserInputState.Begin then enabled = not enabled
-apply()
-end
-return Enum.ContextActionResult.Sink
-end, false, Enum.KeyCode.V)
-UserInputService.InputChanged:Connect(function(input, processed)
-if processed or not enabled then return
-end
-if input.UserInputType == Enum.UserInputType.MouseWheel then targetDistance = math.clamp(targetDistance - input.Position.Z * 6, cfg.MinDistance, cfg.MaxDistance)
-end
-end)
 ]=])
 S:SetAttribute("CozyNext",32)
 print("Project Cozy: part 31/41 done. Paste part 32 next.")

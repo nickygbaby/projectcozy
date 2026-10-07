@@ -85,7 +85,26 @@ function CameraController.start()
 	dof.NearIntensity = 0.25
 	dof.Parent = camera
 
+	-- A tiny crosshair dot in first person, so you can see what a click will hit.
+	local crosshairGui = Instance.new("ScreenGui")
+	crosshairGui.Name = "Crosshair"
+	crosshairGui.ResetOnSpawn = false
+	crosshairGui.IgnoreGuiInset = true
+	crosshairGui.Enabled = false
+	local dot = Instance.new("Frame")
+	dot.AnchorPoint = Vector2.new(0.5, 0.5)
+	dot.Position = UDim2.fromScale(0.5, 0.5)
+	dot.Size = UDim2.fromOffset(6, 6)
+	dot.BackgroundColor3 = Color3.fromRGB(255, 241, 214)
+	dot.BackgroundTransparency = 0.2
+	dot.Parent = crosshairGui
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = dot
+	crosshairGui.Parent = player:WaitForChild("PlayerGui")
+
 	local function apply()
+		crosshairGui.Enabled = atHome and Config.FirstPersonAtHome
 		if atHome and Config.FirstPersonAtHome then
 			camera.CameraType = Enum.CameraType.Custom
 			player.CameraMode = Enum.CameraMode.LockFirstPerson

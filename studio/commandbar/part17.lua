@@ -3,6 +3,9 @@ local S=game:GetService("ServerScriptService")
 if S:GetAttribute("CozyNext")~=17 then warn("Project Cozy: this is part 17, but part "..tostring(S:GetAttribute("CozyNext") or 1).." is next") return end
 local function a(p,s) local o=game for _,n in string.split(p,"/") do o=o:FindFirstChild(n) end o.Source=o.Source..s end
 a("ServerScriptService/Server/Services/DistrictBuilder",[=[
+prompt(vending, "Buy Noodle Brick", "Vending", { Name = "BuyPrompt" })
+prompt(cat.PrimaryPart :: BasePart, "Pet", "Byte", { Name = "PetPrompt", MaxActivationDistance = 7 })
+root.Parent = workspace
 return { Root = root, CustomerSpots = spots, StallPot = pot, Vending = vending, Planters = planters, RoboCat = cat, Elevators = { Up = elevatorUp, Down = elevatorDown, HomeArrival = homeArrival, StreetArrival = streetArrival, }, Terminal = apartment.Terminal, Kitchen = apartment.Kitchen, }
 end
 return DistrictBuilder

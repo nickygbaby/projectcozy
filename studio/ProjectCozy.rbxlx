@@ -1923,7 +1923,10 @@ local function buildApartment(root: Model): Apartment
 		CFrame.new(-4.5, y0 + 3.35, zBack - 1.4),
 		Palette.Cream
 	)
-	prompt(counterTop, "Cook", "Kitchenette", { Name = "KitchenPrompt", MaxActivationDistance = 8 })
+	prompt(counterTop, "Cook", "Kitchenette", { Name = "KitchenPrompt", MaxActivationDistance = 10 })
+	make("ClickDetector", { MaxActivationDistance = 14 }, counterTop)
+	counterTop:SetAttribute("Panel", "kitchen")
+	counterTop:AddTag("HomePanelTarget")
 
 	-- Neighbor Net: a little wall terminal where the building posts requests.
 	local terminal = part(
@@ -1954,7 +1957,15 @@ local function buildApartment(root: Model): Apartment
 		{ Face = Enum.NormalId.Right, Color = Palette.NeonCyan, Range = 6, Brightness = 0.5 },
 		terminal
 	)
-	prompt(terminal, "Check requests", "Neighbor Net", { Name = "TerminalPrompt", MaxActivationDistance = 8 })
+	prompt(
+		terminal,
+		"Check requests",
+		"Neighbor Net",
+		{ Name = "TerminalPrompt", MaxActivationDistance = 10 }
+	)
+	make("ClickDetector", { MaxActivationDistance = 14 }, terminal)
+	terminal:SetAttribute("Panel", "orders")
+	terminal:AddTag("HomePanelTarget")
 	local fridge =
 		part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
 	neon(
@@ -3572,7 +3583,26 @@ function CameraController.start()
 	dof.NearIntensity = 0.25
 	dof.Parent = camera
 
+	-- A tiny crosshair dot in first person, so you can see what a click will hit.
+	local crosshairGui = Instance.new("ScreenGui")
+	crosshairGui.Name = "Crosshair"
+	crosshairGui.ResetOnSpawn = false
+	crosshairGui.IgnoreGuiInset = true
+	crosshairGui.Enabled = false
+	local dot = Instance.new("Frame")
+	dot.AnchorPoint = Vector2.new(0.5, 0.5)
+	dot.Position = UDim2.fromScale(0.5, 0.5)
+	dot.Size = UDim2.fromOffset(6, 6)
+	dot.BackgroundColor3 = Color3.fromRGB(255, 241, 214)
+	dot.BackgroundTransparency = 0.2
+	dot.Parent = crosshairGui
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = dot
+	crosshairGui.Parent = player:WaitForChild("PlayerGui")
+
 	local function apply()
+		crosshairGui.Enabled = atHome and Config.FirstPersonAtHome
 		if atHome and Config.FirstPersonAtHome then
 			camera.CameraType = Enum.CameraType.Custom
 			player.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -3681,9 +3711,14 @@ return CameraController
               <string name="Name">HomePanels</string>
               <string name="Source"><![CDATA[--!strict
 -- The two home screens: Neighbor Net (deliver requests) and the Kitchenette (cook jars).
--- Opened by the "TerminalPrompt" / "KitchenPrompt" prompts, closed with ✕ or by walking
--- away. The server validates every button press (HomeService).
+-- Opened by the "TerminalPrompt" / "KitchenPrompt" prompts (press E) or by clicking the
+-- terminal / counter itself (tag "HomePanelTarget"). Closed with ✕, by walking away, or
+-- by clicking the object again. The server validates every button press (HomeService).
+--
+-- Home is first person, which locks the mouse to the screen center. While a panel is open
+-- the close button is Modal, which frees the mouse so the buttons can be clicked.
 
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -3908,6 +3943,7 @@ function HomePanels.start()
 		mode, anchor = newMode, at
 		render()
 		gui.Enabled = true
+		close.Modal = true -- unlock the first-person mouse
 		scale.Scale = 0.6
 		TweenService
 			:Create(
@@ -3921,8 +3957,35 @@ function HomePanels.start()
 	local function hide()
 		mode, anchor = nil, nil
 		gui.Enabled = false
+		close.Modal = false
 	end
 	close.Activated:Connect(hide)
+
+	local function toggle(newMode: string, at: BasePart)
+		if mode == newMode then
+			hide()
+		else
+			open(newMode, at)
+		end
+	end
+
+	-- Click (or tap) the terminal / counter directly. In first person this hits whatever
+	-- is under the crosshair.
+	local function addTarget(inst: Instance)
+		local detector = inst:FindFirstChildOfClass("ClickDetector")
+		local panelMode = inst:GetAttribute("Panel")
+		if inst:IsA("BasePart") and detector and typeof(panelMode) == "string" then
+			detector.MouseClick:Connect(function(who)
+				if who == player then
+					toggle(panelMode, inst)
+				end
+			end)
+		end
+	end
+	for _, inst in CollectionService:GetTagged("HomePanelTarget") do
+		addTarget(inst)
+	end
+	CollectionService:GetInstanceAddedSignal("HomePanelTarget"):Connect(addTarget)
 
 	ProximityPromptService.PromptTriggered:Connect(function(promptObj, who)
 		if who ~= player then
