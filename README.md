@@ -1,11 +1,12 @@
 # Project Cozy
 
-A cozy cyberpunk life sim for Roblox: *Tiny Eden*'s toybox visuals and bouncy animation, with
+A cozy cyberpunk life sim for Roblox: *Tiny Eden*'s apartment gardening and grey-city/green-home contrast, with
 *Cyberpunk 2077* and *Nivalis* neon-night vibes. Run a tiny noodle stall on a rain-soaked
 street, grow glowing ingredients on the roof and pet the robo-cat.
 
 - 📖 [Game design](docs/GAME_DESIGN.md): pitch, pillars, core loop, roadmap
 - 🎨 [Art & animation direction](docs/ART_DIRECTION.md): shapes, palette, lighting, the "everything bounces" rules
+- 💡🔊 [Lighting & audio map](docs/LIGHTING_AND_AUDIO.md): zones, every light source, time-of-day keys, sound mix
 
 ## Quick start (no tools needed)
 
@@ -47,7 +48,8 @@ Studio Access to API Services*. Without it the game still runs, but progress isn
 | Interact | E (prompt key) | X |
 | Rotate camera 45° | Z / C | L1 / R1 |
 | Zoom | Mouse wheel | — |
-| Toggle diorama / normal camera | V | — |
+| Toggle diorama / normal camera (street) | V | — |
+| Go home / back down | Elevator doors next to the stall / inside the flat | |
 
 ## Project layout
 
@@ -58,24 +60,26 @@ src/
     Palette.luau         the color palette
     Items.luau           ingredients + recipes
     Juice.luau           spring squash/stretch/pop animation library
+    Zones.luau           Street / Rooftop / Home / Indoors area checks
   server/              → ServerScriptService.Server
     Main.server.luau     boots the services
     Services/
       AtmosphereService    lighting, haze, night-biased day/night cycle
       DistrictBuilder      builds Lantern Row (greybox) from code
       PlayerDataService    credits/inventory, DataStore save, mirrored to attributes
-      GardenService        rooftop planters: plant → grow → harvest
+      GardenService        planters: plant → water → grow → dries → … → harvest
       StallService         chibi customers, orders, serving, tips
-      InteractionsService  vending machine, petting Byte the robo-cat
+      InteractionsService  vending machine, petting Byte, home elevator
       Notify               toast/pop remotes
   client/              → StarterPlayerScripts.Client
     Main.client.luau     boots the controllers
     Controllers/
-      CameraController     diorama camera, tilt-shift, occluder fading
+      CameraController     diorama camera on the street, first person at home
       AmbientController    Bob / Spin / NeonFlicker tags, customer reactions, Pop remote
       PlantVisuals         draws crops from planter attributes
       HudController        credits, clock, inventory, toasts
-      RainController       rain particles + ambience loops
+      RainController       rain particles (kept outside the apartment)
+      AudioController      zone mix, muffled rain indoors, reverb, positional loops, one-shots
 ```
 
 ### Architecture rule of thumb

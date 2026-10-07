@@ -1,8 +1,10 @@
 --!strict
--- Draws the crops in each rooftop planter from its "Crop" + "Stage" attributes and pops them
--- in with a spring every time they grow. Stages: 0 empty, 1 sprout, 2 leafy, 3 ripe.
+-- Draws the crops in each planter from its "Crop" + "Stage" attributes and pops them in with
+-- a spring every time they grow. Stages: 0 empty, 1 sprout, 2 leafy, 3 ripe.
+-- Also shows soil moisture: dark when watered, pale and dusty with a droplet when "Thirsty".
 
 local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Juice = require(Shared.Juice)
@@ -123,8 +125,12 @@ local function render(planter: Model)
 	-- Stable per-planter seed so the plants don't reshuffle every stage.
 	local rng = Random.new(#planter.Name * 7919 + math.floor(soil.Position.X * 13 + soil.Position.Z))
 	local top = soil.CFrame * CFrame.new(0, soil.Size.Y / 2, 0)
+	-- Offsets are authored for the big 5.2-wide rooftop soil; shrink them for small pots.
+	local spread = math.min(soil.Size.X / 5.2, soil.Size.Z / 4.2)
+	local scale = (planter:GetAttribute("PlantScale") :: number?) or 1
+	local positions = if spread < 0.35 then { Vector3.zero } else nil
 	for _, offset in
-		{
+		positions or {
 			Vector3.new(-1.4, 0, -1),
 			Vector3.new(1.3, 0, -0.9),
 			Vector3.new(-1.2, 0, 1.1),
@@ -132,7 +138,7 @@ local function render(planter: Model)
 			Vector3.new(0, 0, 0),
 		}
 	do
-		sprout(plants, top * CFrame.new(offset), crop, stage, rng)
+		sprout(plants, top * CFrame.new(offset * spread), crop, stage, rng)
 	end
 
 	if stage >= 3 then
@@ -146,8 +152,57 @@ local function render(planter: Model)
 
 	-- Scale from the soil surface so plants grow up out of the dirt.
 	plants.WorldPivot = top
+	if scale ~= 1 then
+		plants:ScaleTo(scale)
+	end
 	plants.Parent = planter
 	Juice.popIn(plants)
+end
+
+local WET = Palette.Soil
+local DRY = Palette.SoilDry
+
+local function renderMoisture(planter: Model)
+	local soil = planter:FindFirstChild("Soil") :: BasePart?
+	if not soil then
+		return
+	end
+	local stage = (planter:GetAttribute("Stage") :: number?) or 0
+	local thirsty = planter:GetAttribute("Thirsty") == true
+	-- Empty or ripe planters keep damp-looking soil; only growing plants dry out.
+	local wet = not thirsty
+	TweenService:Create(soil, TweenInfo.new(if wet then 0.6 else 2.5), { Color = if wet then WET else DRY })
+		:Play()
+
+	local drop = soil:FindFirstChild("ThirstyDrop") :: BillboardGui?
+	if thirsty and stage > 0 then
+		if not drop then
+			local gui = Instance.new("BillboardGui")
+			gui.Name = "ThirstyDrop"
+			gui.Size = UDim2.fromOffset(36, 36)
+			gui.StudsOffsetWorldSpace = Vector3.new(0, 2.2, 0)
+			gui.AlwaysOnTop = true
+			gui.LightInfluence = 0
+			gui.MaxDistance = 60
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Size = UDim2.fromScale(1, 1)
+			label.Text = "💧"
+			label.TextScaled = true
+			label.Parent = gui
+			gui.Parent = soil
+			-- Gentle bob so it reads as "asking" rather than "warning".
+			task.spawn(function()
+				local t = 0
+				while gui.Parent do
+					t += task.wait()
+					gui.StudsOffsetWorldSpace = Vector3.new(0, 2.2 + math.sin(t * 3) * 0.2, 0)
+				end
+			end)
+		end
+	elseif drop then
+		drop:Destroy()
+	end
 end
 
 function PlantVisuals.start()
@@ -156,8 +211,12 @@ function PlantVisuals.start()
 			return
 		end
 		render(inst)
+		renderMoisture(inst)
 		inst:GetAttributeChangedSignal("Stage"):Connect(function()
 			render(inst)
+		end)
+		inst:GetAttributeChangedSignal("Thirsty"):Connect(function()
+			renderMoisture(inst)
 		end)
 	end
 	for _, inst in CollectionService:GetTagged("Planter") do

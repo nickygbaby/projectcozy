@@ -16,6 +16,6 @@ PlayerDataService.start()
 local district = DistrictBuilder.build()
 GardenService.start(district.Planters)
 StallService.start(district.CustomerSpots, district.StallPot)
-InteractionsService.start(district.Vending, district.RoboCat)
+InteractionsService.start(district.Vending, district.RoboCat, district.Elevators)
 
 print("[ProjectCozy] Lantern Row is open. Stay cozy, choom.")

@@ -2,9 +2,16 @@
 
 **One-liner:** *A toy you could hold, plugged into a neon wall socket.*
 
-Surfaces are soft, chunky and matte, like Tiny Eden. Light is hot, saturated and smeared
+Like Tiny Eden, the city is muted, grey and synthetic, and **home and plants are the
+only truly vibrant things**: soft, warm, matte, green. Light is hot, saturated and smeared
 across wet ground, like Cyberpunk 2077 and Nivalis. When the two conflict, **shapes stay
-cozy and light gets cyber.**
+cozy and light gets cyber.** For the full light and sound plan, see
+[LIGHTING_AND_AUDIO.md](LIGHTING_AND_AUDIO.md).
+
+**Two views:**
+- **Home (first person):** close-up, hands-on, cluttered, warm lamp light, plants
+  everywhere. This is where Tiny Eden lives.
+- **Street (diorama camera):** the city as a little model, neon in the rain.
 
 ## Shape language
 

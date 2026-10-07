@@ -1,30 +1,16 @@
 --!strict
--- Soft, constant drizzle that follows the camera, plus optional ambience loops.
+-- Soft, constant drizzle that follows the player. (Rain *sound* lives in AudioController.)
 -- Rain is the bridge between the two moods: it's cozy (listen to it from under the awning)
 -- and it's cyberpunk (neon smeared on wet asphalt).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Config = require(Shared.Config)
 local Palette = require(Shared.Palette)
+local Zones = require(Shared.Zones)
 
 local RainController = {}
-
-local function loop(name: string, id: string, volume: number)
-	if id == "" then
-		return
-	end
-	local sound = Instance.new("Sound")
-	sound.Name = name
-	sound.SoundId = id
-	sound.Looped = true
-	sound.Volume = volume
-	sound.Parent = SoundService
-	sound:Play()
-end
 
 function RainController.start()
 	local emitterPart = Instance.new("Part")
@@ -54,15 +40,20 @@ function RainController.start()
 	rain.LightInfluence = 0.6
 	rain.Parent = emitterPart
 
-	loop("Rain", Config.Sounds.Rain, 0.35)
-	loop("CityHum", Config.Sounds.CityHum, 0.2)
-
 	local player = Players.LocalPlayer
 	RunService.Heartbeat:Connect(function()
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local center = if root then root.Position else workspace.CurrentCamera.Focus.Position
-		emitterPart.CFrame = CFrame.new(center.X, center.Y + 60, center.Z)
+		if Zones.contains("Home", center) then
+			-- At home: rain only outside the window line (z < 22) so the room stays dry and
+			-- you watch it fall past the glass onto the balcony and the street below.
+			emitterPart.Size = Vector3.new(80, 1, 30)
+			emitterPart.CFrame = CFrame.new(center.X, center.Y + 40, 6)
+		else
+			emitterPart.Size = Vector3.new(120, 1, 120)
+			emitterPart.CFrame = CFrame.new(center.X, center.Y + 60, center.Z)
+		end
 	end)
 end
 

@@ -22,10 +22,12 @@ export type District = {
 	Vending: BasePart,
 	Planters: { Model },
 	RoboCat: Model,
+	Elevators: { Up: BasePart, Down: BasePart, HomeArrival: CFrame, StreetArrival: CFrame },
 }
 
 local SIDEWALK_Y = 0.6
 local ROOF_Y = 10
+local HOME_Y = 48 -- apartment floor height
 local rng = Random.new(2077)
 
 -- Helpers --------------------------------------------------------------------
@@ -374,7 +376,8 @@ local function buildSkyline(root: Model)
 		local w = rng:NextInteger(10, 18)
 		local x1 = math.min(x + w, 70)
 		if x >= -9 and x < 9 then
-			building(folder, -9, 9, 22, 34, 14)
+			-- Home tower: the apartment sits on its roof (see buildApartment).
+			building(folder, -9, 9, 22, 34, HOME_Y - 1)
 			x = 9
 		else
 			if x < -9 and x1 > -9 then
@@ -627,6 +630,56 @@ local CROPS = { "Scallion", "Glowshroom", "EmberChili" }
 local CROP_COLORS =
 	{ Scallion = Palette.NeonLime, Glowshroom = Palette.NeonCyan, EmberChili = Palette.NeonRed }
 
+-- A planter is any Model tagged "Planter" with a "Soil" part holding a "GardenPrompt".
+-- GardenService drives its state; PlantVisuals draws the plants. `plantScale` shrinks the
+-- plants for small pots.
+local function makePlanter(
+	parent: Instance,
+	name: string,
+	boxCFrame: CFrame,
+	boxSize: Vector3,
+	crop: string,
+	color: Color3?,
+	plantScale: number?
+): Model
+	local planter = make("Model", { Name = name }, parent)
+	local box = part(planter, "Box", boxSize, boxCFrame, color or Palette.Wood)
+	local soil = part(
+		planter,
+		"Soil",
+		Vector3.new(boxSize.X - 0.8, 0.3, boxSize.Z - 0.8),
+		boxCFrame * CFrame.new(0, boxSize.Y / 2 + 0.05, 0),
+		Palette.SoilDry,
+		{ Material = Enum.Material.Ground }
+	)
+	planter.PrimaryPart = box
+	-- Crop marker stake so players can read what grows where.
+	local corner = boxCFrame * CFrame.new(boxSize.X / 2 - 0.4, 0, -boxSize.Z / 2 + 0.4)
+	local stakeHeight = math.max(1, boxSize.Y)
+	cylinder(
+		planter,
+		"Stake",
+		stakeHeight,
+		0.15,
+		(corner * CFrame.new(0, boxSize.Y / 2 + stakeHeight / 2, 0)).Position,
+		Palette.Cream
+	)
+	neon(
+		planter,
+		"Marker",
+		Vector3.new(0.5, 0.5, 0.5),
+		corner * CFrame.new(0, boxSize.Y / 2 + stakeHeight + 0.2, 0),
+		CROP_COLORS[crop]
+	)
+	planter:SetAttribute("Crop", crop)
+	planter:SetAttribute("Stage", 0)
+	planter:SetAttribute("Thirsty", false)
+	planter:SetAttribute("PlantScale", plantScale or 1)
+	planter:AddTag("Planter")
+	prompt(soil, "Plant", crop, { Name = "GardenPrompt" })
+	return planter
+end
+
 local function buildGarden(root: Model): { Model }
 	local garden = make("Model", { Name = "RooftopGarden" }, root)
 	local x0, x1, z0, z1 = 20, 50, -50, -22
@@ -733,41 +786,307 @@ local function buildGarden(root: Model): { Model }
 			Brightness = 3,
 			Angle = 120,
 		}, lamp)
+		lamp:SetAttribute("SoundKey", "GrowLampHum")
+		lamp:AddTag("AudioEmitter")
 		for _, lx in { 23, 47 } do
 			cylinder(garden, "LampPost", 7, 0.4, Vector3.new(lx, top + 3.5, pz), Palette.Ink)
 		end
 
 		for i, px in { 27, 35, 43 } do
 			local crop = CROPS[i]
-			local planter = make("Model", { Name = `Planter_{row}_{i}` }, garden)
-			local box =
-				part(planter, "Box", Vector3.new(6, 1.6, 5), CFrame.new(px, top + 0.8, pz), Palette.Wood)
-			local soil = part(
-				planter,
-				"Soil",
-				Vector3.new(5.2, 0.3, 4.2),
-				CFrame.new(px, top + 1.65, pz),
-				Palette.Soil,
-				{ Material = Enum.Material.Ground }
+			local planter = makePlanter(
+				garden,
+				`Planter_{row}_{i}`,
+				CFrame.new(px, top + 0.8, pz),
+				Vector3.new(6, 1.6, 5),
+				crop
 			)
-			planter.PrimaryPart = box
-			-- Crop marker stake so players can read what grows where.
-			cylinder(planter, "Stake", 1.6, 0.15, Vector3.new(px + 2.5, top + 2.4, pz - 2.2), Palette.Cream)
-			neon(
-				planter,
-				"Marker",
-				Vector3.new(0.6, 0.6, 0.6),
-				CFrame.new(px + 2.5, top + 3.3, pz - 2.2),
-				CROP_COLORS[crop]
-			)
-			planter:SetAttribute("Crop", crop)
-			planter:SetAttribute("Stage", 0)
-			planter:AddTag("Planter")
-			prompt(soil, "Plant", crop, { Name = "GardenPrompt" })
 			table.insert(planters, planter)
 		end
 	end
 	return planters
+end
+
+-- Home: a small apartment on top of the tower behind the stall, Tiny Eden style. Inside is
+-- warm, cluttered and green; the big window looks down onto the neon street. The balcony
+-- and windowsill hold the player's own pots.
+local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
+	local home = make("Model", { Name = "Apartment" }, root)
+	local y0 = HOME_Y
+	local x0, x1, zFront, zBack = -9, 9, 22, 34
+	local cz = (zFront + zBack) / 2
+	local height = 10
+
+	-- Shell
+	part(home, "Floor", Vector3.new(17.6, 0.2, 11.6), CFrame.new(0, y0 + 0.1, cz), Palette.Wood)
+	part(home, "Ceiling", Vector3.new(18, 0.6, 12), CFrame.new(0, y0 + height + 0.3, cz), Palette.Cream)
+	part(
+		home,
+		"BackWall",
+		Vector3.new(18, height, 0.6),
+		CFrame.new(0, y0 + height / 2, zBack - 0.3),
+		Palette.Peach
+	)
+	for _, x in { x0 + 0.3, x1 - 0.3 } do
+		part(
+			home,
+			"SideWall",
+			Vector3.new(0.6, height, 12),
+			CFrame.new(x, y0 + height / 2, cz),
+			Palette.Peach
+		)
+	end
+	-- Roof cap so the diorama camera sees a tidy box from outside.
+	part(home, "Roof", Vector3.new(19, 0.6, 13), CFrame.new(0, y0 + height + 0.9, cz), Palette.Concrete)
+	neon(
+		home,
+		"RoofTrim",
+		Vector3.new(19.1, 0.2, 0.2),
+		CFrame.new(0, y0 + height + 0.6, zFront - 0.5),
+		Palette.NeonPink
+	)
+
+	-- Big window wall facing the street, with a door gap to the balcony at x 1..5.
+	local glassProps = { Material = Enum.Material.Glass, Transparency = 0.7, CastShadow = false }
+	part(
+		home,
+		"Window",
+		Vector3.new(10, height, 0.3),
+		CFrame.new(-4, y0 + height / 2, zFront),
+		Palette.Sky,
+		glassProps
+	)
+	part(
+		home,
+		"Window",
+		Vector3.new(4, height, 0.3),
+		CFrame.new(7, y0 + height / 2, zFront),
+		Palette.Sky,
+		glassProps
+	)
+	part(
+		home,
+		"Transom",
+		Vector3.new(4, 2, 0.3),
+		CFrame.new(3, y0 + height - 1, zFront),
+		Palette.Sky,
+		glassProps
+	)
+	for _, x in { -9, 1, 5, 9 } do
+		part(
+			home,
+			"Mullion",
+			Vector3.new(0.4, height, 0.5),
+			CFrame.new(x, y0 + height / 2, zFront),
+			Palette.Cream
+		)
+	end
+
+	-- Windowsill shelf with small pots under a pink grow strip.
+	part(home, "Sill", Vector3.new(9.4, 0.4, 1.8), CFrame.new(-4, y0 + 3, zFront + 1.1), Palette.Cream)
+	local strip = neon(
+		home,
+		"GrowStrip",
+		Vector3.new(9, 0.25, 0.4),
+		CFrame.new(-4, y0 + 6.8, zFront + 1.1),
+		Palette.NeonPink
+	)
+	make(
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Bottom, Color = Palette.NeonPink, Range = 6, Brightness = 2, Angle = 100 },
+		strip
+	)
+
+	local planters = {}
+	local sillCrops = { "Scallion", "Glowshroom", "Scallion", "Glowshroom" }
+	for i, x in { -7.5, -5.2, -2.9, -0.6 } do
+		local pot = makePlanter(
+			home,
+			`Windowsill_{i}`,
+			CFrame.new(x, y0 + 3.85, zFront + 1.1),
+			Vector3.new(1.8, 1.3, 1.5),
+			sillCrops[i],
+			if i % 2 == 0 then Palette.Terracotta else Palette.Mint,
+			0.35
+		)
+		table.insert(planters, pot)
+	end
+
+	-- Balcony: the player's outdoor garden, hanging over the street.
+	local zb = zFront - 2.6
+	part(home, "BalconyFloor", Vector3.new(14, 0.6, 5.2), CFrame.new(0, y0 - 0.3, zb), Palette.Concrete)
+	part(
+		home,
+		"BalconyRail",
+		Vector3.new(14, 2.6, 0.2),
+		CFrame.new(0, y0 + 1.3, zFront - 5.1),
+		Palette.Sky,
+		glassProps
+	)
+	for _, x in { -6.9, 6.9 } do
+		part(
+			home,
+			"BalconyRail",
+			Vector3.new(0.2, 2.6, 5),
+			CFrame.new(x, y0 + 1.3, zb),
+			Palette.Sky,
+			glassProps
+		)
+	end
+	neon(
+		home,
+		"RailGlow",
+		Vector3.new(14, 0.15, 0.15),
+		CFrame.new(0, y0 + 2.65, zFront - 5.1),
+		Palette.NeonCyan
+	)
+	for i, info in { { -4.2, "EmberChili" }, { 4.2, "Glowshroom" } } do
+		local box = makePlanter(
+			home,
+			`Balcony_{i}`,
+			CFrame.new(info[1], y0 + 0.6, zb - 0.6),
+			Vector3.new(4, 1.2, 2.4),
+			info[2],
+			Palette.Wood,
+			0.7
+		)
+		table.insert(planters, box)
+	end
+	-- Fairy lights along the balcony rail: tiny warm dots read as "someone lives here".
+	for i = 0, 12 do
+		local bulb = neon(
+			home,
+			"FairyLight",
+			Vector3.new(0.3, 0.3, 0.3),
+			CFrame.new(-6 + i, y0 + 2.9 - (i % 2) * 0.15, zFront - 5.1),
+			Palette.Butter
+		)
+		bulb.Shape = Enum.PartType.Ball
+	end
+	local balconyLight = make(
+		"PointLight",
+		{ Color = Palette.Butter, Range = 10, Brightness = 0.8 },
+		home:FindFirstChild("RailGlow")
+	)
+	balconyLight.Name = "FairyGlow"
+
+	-- Cozy interior. Warm key light from the ceiling lamp with real shadows.
+	local lampShade = part(
+		home,
+		"LampShade",
+		Vector3.new(1.8, 1.8, 1.8),
+		CFrame.new(0, y0 + 9, cz + 1),
+		Palette.Butter,
+		{ Shape = Enum.PartType.Ball }
+	)
+	make(
+		"PointLight",
+		{ Color = Color3.fromRGB(255, 205, 150), Range = 22, Brightness = 1.3, Shadows = true },
+		lampShade
+	)
+
+	cylinder(home, "Rug", 0.1, 7, Vector3.new(1, y0 + 0.25, cz + 1), Palette.Lilac)
+	-- Bed
+	part(home, "Bed", Vector3.new(4.5, 1.4, 7), CFrame.new(6, y0 + 0.9, cz + 2), Palette.Wood)
+	part(home, "Mattress", Vector3.new(4.3, 0.8, 6.8), CFrame.new(6, y0 + 2, cz + 2), Palette.Cream)
+	part(home, "Blanket", Vector3.new(4.4, 0.3, 4.2), CFrame.new(6, y0 + 2.5, cz + 0.9), Palette.Coral)
+	part(home, "Pillow", Vector3.new(3, 0.6, 1.4), CFrame.new(6, y0 + 2.7, cz + 4.6), Palette.Sky)
+	-- Kitchenette with a fridge that hums.
+	part(home, "Counter", Vector3.new(6, 3.2, 2.2), CFrame.new(-4.5, y0 + 1.6, zBack - 1.4), Palette.Mint)
+	part(
+		home,
+		"CounterTop",
+		Vector3.new(6.2, 0.3, 2.4),
+		CFrame.new(-4.5, y0 + 3.35, zBack - 1.4),
+		Palette.Cream
+	)
+	local fridge =
+		part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
+	neon(
+		home,
+		"FridgeLED",
+		Vector3.new(0.3, 0.3, 0.1),
+		CFrame.new(-0.7, y0 + 5.2, zBack - 2.55),
+		Palette.NeonLime
+	)
+	fridge:SetAttribute("SoundKey", "Fridge")
+	fridge:AddTag("AudioEmitter")
+	cylinder(home, "Kettle", 0.9, 0.9, Vector3.new(-6, y0 + 3.95, zBack - 1.4), Palette.Coral)
+	-- Hanging plants from the ceiling: the apartment slowly fills with green.
+	for _, pos in { Vector3.new(-6.5, y0 + 8.4, cz - 2), Vector3.new(3.5, y0 + 8.4, cz - 3) } do
+		local hanger = make("Model", { Name = "HangingPlant" }, home)
+		local potPart = part(
+			hanger,
+			"Pot",
+			Vector3.new(1.4, 1, 1.4),
+			CFrame.new(pos),
+			Palette.Terracotta,
+			{ CanCollide = false }
+		)
+		hanger.PrimaryPart = potPart
+		for k = 0, 4 do
+			local a = k * math.pi * 2 / 5
+			part(
+				hanger,
+				"Vine",
+				Vector3.new(0.35, 2.2 + (k % 2), 0.35),
+				CFrame.new(pos + Vector3.new(math.cos(a) * 0.6, -1.4 - (k % 2) * 0.5, math.sin(a) * 0.6)),
+				Palette.LeafDeep,
+				{ CanCollide = false }
+			)
+		end
+		hanger:SetAttribute("BobAmplitude", 0.05)
+		hanger:SetAttribute("BobSpeed", 0.9)
+		hanger:AddTag("Bob")
+	end
+	-- Cat bed by the window for Byte's future visits.
+	cylinder(home, "CatBed", 0.6, 2.6, Vector3.new(-6.5, y0 + 0.5, cz - 1.5), Palette.Coral)
+
+	-- Elevator door (inside, on the right wall near the window) back down to the street.
+	local down = neon(
+		home,
+		"ElevatorDown",
+		Vector3.new(0.2, 6, 3),
+		CFrame.new(x1 - 0.7, y0 + 3, 24.6),
+		Palette.NeonCyan
+	)
+	down.Transparency = 0.5
+	sign(
+		home,
+		"↓ STREET",
+		Vector2.new(3, 0.8),
+		Vector3.new(x1 - 0.75, y0 + 6.7, 24.6),
+		Vector3.new(-1, 0, 0),
+		Palette.NeonCyan
+	)
+	local homeArrival = CFrame.lookAt(Vector3.new(2, y0 + 3, 26), Vector3.new(2, y0 + 3, zFront))
+
+	return planters, down, homeArrival
+end
+
+local function buildElevatorUp(root: Model): (BasePart, CFrame)
+	local model = make("Model", { Name = "ElevatorStreet" }, root)
+	part(model, "Frame", Vector3.new(3.4, 7, 0.4), CFrame.new(-10.2, SIDEWALK_Y + 3.5, 21.8), Palette.Steel)
+	local door = neon(
+		model,
+		"ElevatorUp",
+		Vector3.new(3, 6, 0.2),
+		CFrame.new(-10.2, SIDEWALK_Y + 3, 21.5),
+		Palette.NeonCyan,
+		8
+	)
+	door.Transparency = 0.5
+	sign(
+		model,
+		"↑ HOME",
+		Vector2.new(3, 0.8),
+		Vector3.new(-10.2, SIDEWALK_Y + 7.4, 21.5),
+		Vector3.new(0, 0, -1),
+		Palette.NeonCyan
+	)
+	local arrival =
+		CFrame.lookAt(Vector3.new(-10.2, SIDEWALK_Y + 3, 18), Vector3.new(-10.2, SIDEWALK_Y + 3, 10))
+	return door, arrival
 end
 
 -- Public ---------------------------------------------------------------------
@@ -787,7 +1106,20 @@ function DistrictBuilder.build(): District
 	local vending = buildVending(root)
 	local cat = buildRoboCat(root)
 	local planters = buildGarden(root)
+	local homePlanters, elevatorDown, homeArrival = buildApartment(root)
+	for _, planter in homePlanters do
+		table.insert(planters, planter)
+	end
+	local elevatorUp, streetArrival = buildElevatorUp(root)
 
+	-- Positional sound sources (see AudioController / docs/LIGHTING_AND_AUDIO.md).
+	pot:SetAttribute("SoundKey", "BrothSimmer")
+	pot:AddTag("AudioEmitter")
+	vending:SetAttribute("SoundKey", "VendingHum")
+	vending:AddTag("AudioEmitter")
+
+	prompt(elevatorUp, "Go home", "Elevator", { Name = "ElevatorPrompt" })
+	prompt(elevatorDown, "Go down", "Elevator", { Name = "ElevatorPrompt" })
 	prompt(vending, "Buy Noodle Brick", "Vending", { Name = "BuyPrompt" })
 	prompt(cat.PrimaryPart :: BasePart, "Pet", "Byte", { Name = "PetPrompt", MaxActivationDistance = 7 })
 
@@ -799,6 +1131,12 @@ function DistrictBuilder.build(): District
 		Vending = vending,
 		Planters = planters,
 		RoboCat = cat,
+		Elevators = {
+			Up = elevatorUp,
+			Down = elevatorDown,
+			HomeArrival = homeArrival,
+			StreetArrival = streetArrival,
+		},
 	}
 end
 

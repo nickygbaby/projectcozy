@@ -59,7 +59,7 @@ end
 
 local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
-for _, name in { "Toast", "Pop" } do
+for _, name in { "Toast", "Pop", "Sfx" } do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes
@@ -86,8 +86,9 @@ local Config = {
 	StartingInventory = { Noodles = 2 },
 	NoodleBrickPrice = 4,
 
-	-- Garden
-	GrowSeconds = 45, -- seed -> ripe
+	-- Garden (Tiny Eden style care ritual: plants only grow while their soil is watered,
+	-- and the soil dries out again after every growth stage)
+	GrowSeconds = 45, -- total watered time from seed to ripe
 	HarvestYield = 2,
 
 	-- Noodle stall
@@ -112,76 +113,47 @@ local Config = {
 		RotateSharpness = 10,
 	},
 
-	-- Sound asset ids. Left blank on purpose: drop in ids from your own uploads / Creator Store.
+	-- Home is played in first person, like Tiny Eden. The street keeps the diorama camera.
+	FirstPersonAtHome = true,
+
+	-- World-space boxes the client uses to switch camera and audio per area.
+	-- Keep in sync with DistrictBuilder (apartment sits on the tower behind the stall).
+	Zones = {
+		Home = { Center = Vector3.new(0, 53, 26), Size = Vector3.new(18, 12, 18) }, -- apartment + balcony
+		Indoors = { Center = Vector3.new(0, 53, 28.5), Size = Vector3.new(18, 12, 13) }, -- apartment only
+		Rooftop = { Center = Vector3.new(35, 17, -36), Size = Vector3.new(30, 14, 28) },
+	},
+
+	-- Sound asset ids ("rbxassetid://123..."). Left blank on purpose: drop in ids from your
+	-- own uploads or licensed Creator Store audio. Blank = silently skipped.
+	-- See docs/LIGHTING_AND_AUDIO.md for what each one should sound like.
 	Sounds = {
+		-- Ambience beds (2D, looped, crossfaded per zone)
 		Rain = "",
 		CityHum = "",
+		RoomTone = "",
+		RooftopWind = "",
+		-- Music (2D, looped)
+		MusicNight = "",
+		MusicHome = "",
+		-- Positional loops (3D, attached to tagged parts)
+		BrothSimmer = "",
+		VendingHum = "",
+		GrowLampHum = "",
+		NeonBuzz = "",
+		Fridge = "",
+		-- One-shots
 		Pop = "",
 		Coin = "",
+		Water = "",
+		Harvest = "",
+		Elevator = "",
+		Purr = "",
+		Nope = "",
 	},
 }
 
 return Config
-]=])
-
-install("ReplicatedStorage/Shared", "Palette", "ModuleScript", [=[
---!strict
--- The Lantern Row palette: soft "toybox" colors for anything you touch, hot neon for
--- anything that glows. Rule of thumb: cozy colors on surfaces, neon only on light sources.
-
-local function hex(code: string): Color3
-	return Color3.fromHex(code)
-end
-
-local Palette = {
-	-- Night sky & city mass
-	Ink = hex("#0f0c1f"),
-	Indigo = hex("#1b1538"),
-	Violet = hex("#2e2257"),
-	Asphalt = hex("#221d36"),
-	Concrete = hex("#3c3558"),
-	Brick = hex("#5a3f63"),
-
-	-- Toybox (cozy, matte, rounded)
-	Cream = hex("#fff1d6"),
-	Peach = hex("#ffb59e"),
-	Coral = hex("#ff8a80"),
-	Mint = hex("#9ff2c4"),
-	Sky = hex("#9fd8ff"),
-	Butter = hex("#ffe38a"),
-	Lilac = hex("#c7b3ff"),
-	Wood = hex("#8a5a44"),
-	Soil = hex("#3b2a2a"),
-	Leaf = hex("#5fd38a"),
-
-	-- Neon (emissive only)
-	NeonPink = hex("#ff4fa3"),
-	NeonCyan = hex("#3ff0ff"),
-	NeonLime = hex("#b6ff5a"),
-	NeonAmber = hex("#ffb347"),
-	NeonPurple = hex("#a970ff"),
-	NeonRed = hex("#ff3b5c"),
-}
-
-Palette.NeonSet = {
-	Palette.NeonPink,
-	Palette.NeonCyan,
-	Palette.NeonLime,
-	Palette.NeonAmber,
-	Palette.NeonPurple,
-}
-
-Palette.ToySet = {
-	Palette.Cream,
-	Palette.Peach,
-	Palette.Coral,
-	Palette.Mint,
-	Palette.Sky,
-	Palette.Butter,
-	Palette.Lilac,
-}
-
-return Palette
 ]=])
 
 install("ReplicatedStorage/Shared", "Items", "ModuleScript", [=[
@@ -480,6 +452,105 @@ Juice.stepSpring = stepSpring
 return Juice
 ]=])
 
+install("ReplicatedStorage/Shared", "Palette", "ModuleScript", [=[
+--!strict
+-- The Lantern Row palette: soft "toybox" colors for anything you touch, hot neon for
+-- anything that glows. Rule of thumb: cozy colors on surfaces, neon only on light sources.
+
+local function hex(code: string): Color3
+	return Color3.fromHex(code)
+end
+
+local Palette = {
+	-- Night sky & city mass. Deliberately muted and synthetic (Tiny Eden's grey megacity)
+	-- so that plants, home and neon are the only saturated things on screen.
+	Ink = hex("#0f0e1a"),
+	Indigo = hex("#1c1a2c"),
+	Violet = hex("#2f2b45"),
+	Asphalt = hex("#23212e"),
+	Concrete = hex("#43414f"),
+	Brick = hex("#4d4757"),
+	Steel = hex("#6b6c78"),
+
+	-- Toybox (cozy, matte, rounded)
+	Cream = hex("#fff1d6"),
+	Peach = hex("#ffb59e"),
+	Coral = hex("#ff8a80"),
+	Mint = hex("#9ff2c4"),
+	Sky = hex("#9fd8ff"),
+	Butter = hex("#ffe38a"),
+	Lilac = hex("#c7b3ff"),
+	Wood = hex("#8a5a44"),
+	Soil = hex("#3b2a2a"),
+	Leaf = hex("#5fd38a"),
+	LeafDeep = hex("#2f9e5f"),
+	SoilDry = hex("#7a6150"),
+	Terracotta = hex("#d9825b"),
+
+	-- Neon (emissive only)
+	NeonPink = hex("#ff4fa3"),
+	NeonCyan = hex("#3ff0ff"),
+	NeonLime = hex("#b6ff5a"),
+	NeonAmber = hex("#ffb347"),
+	NeonPurple = hex("#a970ff"),
+	NeonRed = hex("#ff3b5c"),
+}
+
+Palette.NeonSet = {
+	Palette.NeonPink,
+	Palette.NeonCyan,
+	Palette.NeonLime,
+	Palette.NeonAmber,
+	Palette.NeonPurple,
+}
+
+Palette.ToySet = {
+	Palette.Cream,
+	Palette.Peach,
+	Palette.Coral,
+	Palette.Mint,
+	Palette.Sky,
+	Palette.Butter,
+	Palette.Lilac,
+}
+
+return Palette
+]=])
+
+install("ReplicatedStorage/Shared", "Zones", "ModuleScript", [=[
+--!strict
+-- Point-in-box checks for the named areas in Config.Zones (Home, Indoors, Rooftop).
+
+local Config = require(script.Parent.Config)
+
+local Zones = {}
+
+function Zones.contains(name: string, position: Vector3): boolean
+	local zone = (Config.Zones :: any)[name]
+	if not zone then
+		return false
+	end
+	local offset = position - zone.Center
+	local half = zone.Size / 2
+	return math.abs(offset.X) <= half.X and math.abs(offset.Y) <= half.Y and math.abs(offset.Z) <= half.Z
+end
+
+-- The most specific zone the position is in, for audio/camera: "Indoors" > "Home" >
+-- "Rooftop" > "Street".
+function Zones.at(position: Vector3): string
+	if Zones.contains("Indoors", position) then
+		return "Indoors"
+	elseif Zones.contains("Home", position) then
+		return "Home"
+	elseif Zones.contains("Rooftop", position) then
+		return "Rooftop"
+	end
+	return "Street"
+end
+
+return Zones
+]=])
+
 install("ServerScriptService/Server", "Main", "Script", [=[
 --!strict
 -- Server entry point. The server owns state (data, timers, prompts); clients own visuals.
@@ -499,7 +570,7 @@ PlayerDataService.start()
 local district = DistrictBuilder.build()
 GardenService.start(district.Planters)
 StallService.start(district.CustomerSpots, district.StallPot)
-InteractionsService.start(district.Vending, district.RoboCat)
+InteractionsService.start(district.Vending, district.RoboCat, district.Elevators)
 
 print("[ProjectCozy] Lantern Row is open. Stay cozy, choom.")
 ]=])
@@ -693,10 +764,12 @@ export type District = {
 	Vending: BasePart,
 	Planters: { Model },
 	RoboCat: Model,
+	Elevators: { Up: BasePart, Down: BasePart, HomeArrival: CFrame, StreetArrival: CFrame },
 }
 
 local SIDEWALK_Y = 0.6
 local ROOF_Y = 10
+local HOME_Y = 48 -- apartment floor height
 local rng = Random.new(2077)
 
 -- Helpers --------------------------------------------------------------------
@@ -1045,7 +1118,8 @@ local function buildSkyline(root: Model)
 		local w = rng:NextInteger(10, 18)
 		local x1 = math.min(x + w, 70)
 		if x >= -9 and x < 9 then
-			building(folder, -9, 9, 22, 34, 14)
+			-- Home tower: the apartment sits on its roof (see buildApartment).
+			building(folder, -9, 9, 22, 34, HOME_Y - 1)
 			x = 9
 		else
 			if x < -9 and x1 > -9 then
@@ -1298,6 +1372,56 @@ local CROPS = { "Scallion", "Glowshroom", "EmberChili" }
 local CROP_COLORS =
 	{ Scallion = Palette.NeonLime, Glowshroom = Palette.NeonCyan, EmberChili = Palette.NeonRed }
 
+-- A planter is any Model tagged "Planter" with a "Soil" part holding a "GardenPrompt".
+-- GardenService drives its state; PlantVisuals draws the plants. `plantScale` shrinks the
+-- plants for small pots.
+local function makePlanter(
+	parent: Instance,
+	name: string,
+	boxCFrame: CFrame,
+	boxSize: Vector3,
+	crop: string,
+	color: Color3?,
+	plantScale: number?
+): Model
+	local planter = make("Model", { Name = name }, parent)
+	local box = part(planter, "Box", boxSize, boxCFrame, color or Palette.Wood)
+	local soil = part(
+		planter,
+		"Soil",
+		Vector3.new(boxSize.X - 0.8, 0.3, boxSize.Z - 0.8),
+		boxCFrame * CFrame.new(0, boxSize.Y / 2 + 0.05, 0),
+		Palette.SoilDry,
+		{ Material = Enum.Material.Ground }
+	)
+	planter.PrimaryPart = box
+	-- Crop marker stake so players can read what grows where.
+	local corner = boxCFrame * CFrame.new(boxSize.X / 2 - 0.4, 0, -boxSize.Z / 2 + 0.4)
+	local stakeHeight = math.max(1, boxSize.Y)
+	cylinder(
+		planter,
+		"Stake",
+		stakeHeight,
+		0.15,
+		(corner * CFrame.new(0, boxSize.Y / 2 + stakeHeight / 2, 0)).Position,
+		Palette.Cream
+	)
+	neon(
+		planter,
+		"Marker",
+		Vector3.new(0.5, 0.5, 0.5),
+		corner * CFrame.new(0, boxSize.Y / 2 + stakeHeight + 0.2, 0),
+		CROP_COLORS[crop]
+	)
+	planter:SetAttribute("Crop", crop)
+	planter:SetAttribute("Stage", 0)
+	planter:SetAttribute("Thirsty", false)
+	planter:SetAttribute("PlantScale", plantScale or 1)
+	planter:AddTag("Planter")
+	prompt(soil, "Plant", crop, { Name = "GardenPrompt" })
+	return planter
+end
+
 local function buildGarden(root: Model): { Model }
 	local garden = make("Model", { Name = "RooftopGarden" }, root)
 	local x0, x1, z0, z1 = 20, 50, -50, -22
@@ -1404,41 +1528,307 @@ local function buildGarden(root: Model): { Model }
 			Brightness = 3,
 			Angle = 120,
 		}, lamp)
+		lamp:SetAttribute("SoundKey", "GrowLampHum")
+		lamp:AddTag("AudioEmitter")
 		for _, lx in { 23, 47 } do
 			cylinder(garden, "LampPost", 7, 0.4, Vector3.new(lx, top + 3.5, pz), Palette.Ink)
 		end
 
 		for i, px in { 27, 35, 43 } do
 			local crop = CROPS[i]
-			local planter = make("Model", { Name = `Planter_{row}_{i}` }, garden)
-			local box =
-				part(planter, "Box", Vector3.new(6, 1.6, 5), CFrame.new(px, top + 0.8, pz), Palette.Wood)
-			local soil = part(
-				planter,
-				"Soil",
-				Vector3.new(5.2, 0.3, 4.2),
-				CFrame.new(px, top + 1.65, pz),
-				Palette.Soil,
-				{ Material = Enum.Material.Ground }
+			local planter = makePlanter(
+				garden,
+				`Planter_{row}_{i}`,
+				CFrame.new(px, top + 0.8, pz),
+				Vector3.new(6, 1.6, 5),
+				crop
 			)
-			planter.PrimaryPart = box
-			-- Crop marker stake so players can read what grows where.
-			cylinder(planter, "Stake", 1.6, 0.15, Vector3.new(px + 2.5, top + 2.4, pz - 2.2), Palette.Cream)
-			neon(
-				planter,
-				"Marker",
-				Vector3.new(0.6, 0.6, 0.6),
-				CFrame.new(px + 2.5, top + 3.3, pz - 2.2),
-				CROP_COLORS[crop]
-			)
-			planter:SetAttribute("Crop", crop)
-			planter:SetAttribute("Stage", 0)
-			planter:AddTag("Planter")
-			prompt(soil, "Plant", crop, { Name = "GardenPrompt" })
 			table.insert(planters, planter)
 		end
 	end
 	return planters
+end
+
+-- Home: a small apartment on top of the tower behind the stall, Tiny Eden style. Inside is
+-- warm, cluttered and green; the big window looks down onto the neon street. The balcony
+-- and windowsill hold the player's own pots.
+local function buildApartment(root: Model): ({ Model }, BasePart, CFrame)
+	local home = make("Model", { Name = "Apartment" }, root)
+	local y0 = HOME_Y
+	local x0, x1, zFront, zBack = -9, 9, 22, 34
+	local cz = (zFront + zBack) / 2
+	local height = 10
+
+	-- Shell
+	part(home, "Floor", Vector3.new(17.6, 0.2, 11.6), CFrame.new(0, y0 + 0.1, cz), Palette.Wood)
+	part(home, "Ceiling", Vector3.new(18, 0.6, 12), CFrame.new(0, y0 + height + 0.3, cz), Palette.Cream)
+	part(
+		home,
+		"BackWall",
+		Vector3.new(18, height, 0.6),
+		CFrame.new(0, y0 + height / 2, zBack - 0.3),
+		Palette.Peach
+	)
+	for _, x in { x0 + 0.3, x1 - 0.3 } do
+		part(
+			home,
+			"SideWall",
+			Vector3.new(0.6, height, 12),
+			CFrame.new(x, y0 + height / 2, cz),
+			Palette.Peach
+		)
+	end
+	-- Roof cap so the diorama camera sees a tidy box from outside.
+	part(home, "Roof", Vector3.new(19, 0.6, 13), CFrame.new(0, y0 + height + 0.9, cz), Palette.Concrete)
+	neon(
+		home,
+		"RoofTrim",
+		Vector3.new(19.1, 0.2, 0.2),
+		CFrame.new(0, y0 + height + 0.6, zFront - 0.5),
+		Palette.NeonPink
+	)
+
+	-- Big window wall facing the street, with a door gap to the balcony at x 1..5.
+	local glassProps = { Material = Enum.Material.Glass, Transparency = 0.7, CastShadow = false }
+	part(
+		home,
+		"Window",
+		Vector3.new(10, height, 0.3),
+		CFrame.new(-4, y0 + height / 2, zFront),
+		Palette.Sky,
+		glassProps
+	)
+	part(
+		home,
+		"Window",
+		Vector3.new(4, height, 0.3),
+		CFrame.new(7, y0 + height / 2, zFront),
+		Palette.Sky,
+		glassProps
+	)
+	part(
+		home,
+		"Transom",
+		Vector3.new(4, 2, 0.3),
+		CFrame.new(3, y0 + height - 1, zFront),
+		Palette.Sky,
+		glassProps
+	)
+	for _, x in { -9, 1, 5, 9 } do
+		part(
+			home,
+			"Mullion",
+			Vector3.new(0.4, height, 0.5),
+			CFrame.new(x, y0 + height / 2, zFront),
+			Palette.Cream
+		)
+	end
+
+	-- Windowsill shelf with small pots under a pink grow strip.
+	part(home, "Sill", Vector3.new(9.4, 0.4, 1.8), CFrame.new(-4, y0 + 3, zFront + 1.1), Palette.Cream)
+	local strip = neon(
+		home,
+		"GrowStrip",
+		Vector3.new(9, 0.25, 0.4),
+		CFrame.new(-4, y0 + 6.8, zFront + 1.1),
+		Palette.NeonPink
+	)
+	make(
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Bottom, Color = Palette.NeonPink, Range = 6, Brightness = 2, Angle = 100 },
+		strip
+	)
+
+	local planters = {}
+	local sillCrops = { "Scallion", "Glowshroom", "Scallion", "Glowshroom" }
+	for i, x in { -7.5, -5.2, -2.9, -0.6 } do
+		local pot = makePlanter(
+			home,
+			`Windowsill_{i}`,
+			CFrame.new(x, y0 + 3.85, zFront + 1.1),
+			Vector3.new(1.8, 1.3, 1.5),
+			sillCrops[i],
+			if i % 2 == 0 then Palette.Terracotta else Palette.Mint,
+			0.35
+		)
+		table.insert(planters, pot)
+	end
+
+	-- Balcony: the player's outdoor garden, hanging over the street.
+	local zb = zFront - 2.6
+	part(home, "BalconyFloor", Vector3.new(14, 0.6, 5.2), CFrame.new(0, y0 - 0.3, zb), Palette.Concrete)
+	part(
+		home,
+		"BalconyRail",
+		Vector3.new(14, 2.6, 0.2),
+		CFrame.new(0, y0 + 1.3, zFront - 5.1),
+		Palette.Sky,
+		glassProps
+	)
+	for _, x in { -6.9, 6.9 } do
+		part(
+			home,
+			"BalconyRail",
+			Vector3.new(0.2, 2.6, 5),
+			CFrame.new(x, y0 + 1.3, zb),
+			Palette.Sky,
+			glassProps
+		)
+	end
+	neon(
+		home,
+		"RailGlow",
+		Vector3.new(14, 0.15, 0.15),
+		CFrame.new(0, y0 + 2.65, zFront - 5.1),
+		Palette.NeonCyan
+	)
+	for i, info in { { -4.2, "EmberChili" }, { 4.2, "Glowshroom" } } do
+		local box = makePlanter(
+			home,
+			`Balcony_{i}`,
+			CFrame.new(info[1], y0 + 0.6, zb - 0.6),
+			Vector3.new(4, 1.2, 2.4),
+			info[2],
+			Palette.Wood,
+			0.7
+		)
+		table.insert(planters, box)
+	end
+	-- Fairy lights along the balcony rail: tiny warm dots read as "someone lives here".
+	for i = 0, 12 do
+		local bulb = neon(
+			home,
+			"FairyLight",
+			Vector3.new(0.3, 0.3, 0.3),
+			CFrame.new(-6 + i, y0 + 2.9 - (i % 2) * 0.15, zFront - 5.1),
+			Palette.Butter
+		)
+		bulb.Shape = Enum.PartType.Ball
+	end
+	local balconyLight = make(
+		"PointLight",
+		{ Color = Palette.Butter, Range = 10, Brightness = 0.8 },
+		home:FindFirstChild("RailGlow")
+	)
+	balconyLight.Name = "FairyGlow"
+
+	-- Cozy interior. Warm key light from the ceiling lamp with real shadows.
+	local lampShade = part(
+		home,
+		"LampShade",
+		Vector3.new(1.8, 1.8, 1.8),
+		CFrame.new(0, y0 + 9, cz + 1),
+		Palette.Butter,
+		{ Shape = Enum.PartType.Ball }
+	)
+	make(
+		"PointLight",
+		{ Color = Color3.fromRGB(255, 205, 150), Range = 22, Brightness = 1.3, Shadows = true },
+		lampShade
+	)
+
+	cylinder(home, "Rug", 0.1, 7, Vector3.new(1, y0 + 0.25, cz + 1), Palette.Lilac)
+	-- Bed
+	part(home, "Bed", Vector3.new(4.5, 1.4, 7), CFrame.new(6, y0 + 0.9, cz + 2), Palette.Wood)
+	part(home, "Mattress", Vector3.new(4.3, 0.8, 6.8), CFrame.new(6, y0 + 2, cz + 2), Palette.Cream)
+	part(home, "Blanket", Vector3.new(4.4, 0.3, 4.2), CFrame.new(6, y0 + 2.5, cz + 0.9), Palette.Coral)
+	part(home, "Pillow", Vector3.new(3, 0.6, 1.4), CFrame.new(6, y0 + 2.7, cz + 4.6), Palette.Sky)
+	-- Kitchenette with a fridge that hums.
+	part(home, "Counter", Vector3.new(6, 3.2, 2.2), CFrame.new(-4.5, y0 + 1.6, zBack - 1.4), Palette.Mint)
+	part(
+		home,
+		"CounterTop",
+		Vector3.new(6.2, 0.3, 2.4),
+		CFrame.new(-4.5, y0 + 3.35, zBack - 1.4),
+		Palette.Cream
+	)
+	local fridge =
+		part(home, "Fridge", Vector3.new(2.4, 6, 2.2), CFrame.new(-0.2, y0 + 3, zBack - 1.4), Palette.Steel)
+	neon(
+		home,
+		"FridgeLED",
+		Vector3.new(0.3, 0.3, 0.1),
+		CFrame.new(-0.7, y0 + 5.2, zBack - 2.55),
+		Palette.NeonLime
+	)
+	fridge:SetAttribute("SoundKey", "Fridge")
+	fridge:AddTag("AudioEmitter")
+	cylinder(home, "Kettle", 0.9, 0.9, Vector3.new(-6, y0 + 3.95, zBack - 1.4), Palette.Coral)
+	-- Hanging plants from the ceiling: the apartment slowly fills with green.
+	for _, pos in { Vector3.new(-6.5, y0 + 8.4, cz - 2), Vector3.new(3.5, y0 + 8.4, cz - 3) } do
+		local hanger = make("Model", { Name = "HangingPlant" }, home)
+		local potPart = part(
+			hanger,
+			"Pot",
+			Vector3.new(1.4, 1, 1.4),
+			CFrame.new(pos),
+			Palette.Terracotta,
+			{ CanCollide = false }
+		)
+		hanger.PrimaryPart = potPart
+		for k = 0, 4 do
+			local a = k * math.pi * 2 / 5
+			part(
+				hanger,
+				"Vine",
+				Vector3.new(0.35, 2.2 + (k % 2), 0.35),
+				CFrame.new(pos + Vector3.new(math.cos(a) * 0.6, -1.4 - (k % 2) * 0.5, math.sin(a) * 0.6)),
+				Palette.LeafDeep,
+				{ CanCollide = false }
+			)
+		end
+		hanger:SetAttribute("BobAmplitude", 0.05)
+		hanger:SetAttribute("BobSpeed", 0.9)
+		hanger:AddTag("Bob")
+	end
+	-- Cat bed by the window for Byte's future visits.
+	cylinder(home, "CatBed", 0.6, 2.6, Vector3.new(-6.5, y0 + 0.5, cz - 1.5), Palette.Coral)
+
+	-- Elevator door (inside, on the right wall near the window) back down to the street.
+	local down = neon(
+		home,
+		"ElevatorDown",
+		Vector3.new(0.2, 6, 3),
+		CFrame.new(x1 - 0.7, y0 + 3, 24.6),
+		Palette.NeonCyan
+	)
+	down.Transparency = 0.5
+	sign(
+		home,
+		"↓ STREET",
+		Vector2.new(3, 0.8),
+		Vector3.new(x1 - 0.75, y0 + 6.7, 24.6),
+		Vector3.new(-1, 0, 0),
+		Palette.NeonCyan
+	)
+	local homeArrival = CFrame.lookAt(Vector3.new(2, y0 + 3, 26), Vector3.new(2, y0 + 3, zFront))
+
+	return planters, down, homeArrival
+end
+
+local function buildElevatorUp(root: Model): (BasePart, CFrame)
+	local model = make("Model", { Name = "ElevatorStreet" }, root)
+	part(model, "Frame", Vector3.new(3.4, 7, 0.4), CFrame.new(-10.2, SIDEWALK_Y + 3.5, 21.8), Palette.Steel)
+	local door = neon(
+		model,
+		"ElevatorUp",
+		Vector3.new(3, 6, 0.2),
+		CFrame.new(-10.2, SIDEWALK_Y + 3, 21.5),
+		Palette.NeonCyan,
+		8
+	)
+	door.Transparency = 0.5
+	sign(
+		model,
+		"↑ HOME",
+		Vector2.new(3, 0.8),
+		Vector3.new(-10.2, SIDEWALK_Y + 7.4, 21.5),
+		Vector3.new(0, 0, -1),
+		Palette.NeonCyan
+	)
+	local arrival =
+		CFrame.lookAt(Vector3.new(-10.2, SIDEWALK_Y + 3, 18), Vector3.new(-10.2, SIDEWALK_Y + 3, 10))
+	return door, arrival
 end
 
 -- Public ---------------------------------------------------------------------
@@ -1458,7 +1848,20 @@ function DistrictBuilder.build(): District
 	local vending = buildVending(root)
 	local cat = buildRoboCat(root)
 	local planters = buildGarden(root)
+	local homePlanters, elevatorDown, homeArrival = buildApartment(root)
+	for _, planter in homePlanters do
+		table.insert(planters, planter)
+	end
+	local elevatorUp, streetArrival = buildElevatorUp(root)
 
+	-- Positional sound sources (see AudioController / docs/LIGHTING_AND_AUDIO.md).
+	pot:SetAttribute("SoundKey", "BrothSimmer")
+	pot:AddTag("AudioEmitter")
+	vending:SetAttribute("SoundKey", "VendingHum")
+	vending:AddTag("AudioEmitter")
+
+	prompt(elevatorUp, "Go home", "Elevator", { Name = "ElevatorPrompt" })
+	prompt(elevatorDown, "Go down", "Elevator", { Name = "ElevatorPrompt" })
 	prompt(vending, "Buy Noodle Brick", "Vending", { Name = "BuyPrompt" })
 	prompt(cat.PrimaryPart :: BasePart, "Pet", "Byte", { Name = "PetPrompt", MaxActivationDistance = 7 })
 
@@ -1470,6 +1873,12 @@ function DistrictBuilder.build(): District
 		Vending = vending,
 		Planters = planters,
 		RoboCat = cat,
+		Elevators = {
+			Up = elevatorUp,
+			Down = elevatorDown,
+			HomeArrival = homeArrival,
+			StreetArrival = streetArrival,
+		},
 	}
 end
 
@@ -1478,9 +1887,12 @@ return DistrictBuilder
 
 install("ServerScriptService/Server/Services", "GardenService", "ModuleScript", [=[
 --!strict
--- Rooftop planters: Plant -> (grows through 3 stages) -> Harvest.
--- The server only tracks state on attributes ("Crop", "Stage"); the client draws the plants
--- and does all the bouncing (see client/Controllers/PlantVisuals).
+-- Planters (rooftop, windowsill, balcony): Plant -> Water -> grow a stage -> soil dries ->
+-- Water -> ... -> Harvest. Plants only grow while their soil is wet. This little daily
+-- ritual is the heart of Tiny Eden; nothing ever wilts or dies if you forget.
+--
+-- The server only tracks state on attributes ("Crop", "Stage", "Thirsty"); the client draws
+-- the plants, darkens wet soil and does all the bouncing (client/Controllers/PlantVisuals).
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -1496,23 +1908,21 @@ local GardenService = {}
 local function refreshPrompt(planter: Model, promptObj: ProximityPrompt)
 	local crop = planter:GetAttribute("Crop") :: string
 	local stage = planter:GetAttribute("Stage") :: number
-	local name = ItemsModule.Items[crop].Name
+	local thirsty = planter:GetAttribute("Thirsty") == true
+	promptObj.ObjectText = ItemsModule.Items[crop].Name
 	if stage == 0 then
 		promptObj.Enabled = true
 		promptObj.ActionText = "Plant"
-		promptObj.ObjectText = name
 	elseif stage >= RIPE then
 		promptObj.Enabled = true
 		promptObj.ActionText = "Harvest"
-		promptObj.ObjectText = name
+	elseif thirsty then
+		promptObj.Enabled = true
+		promptObj.ActionText = "Water"
 	else
+		-- Growing: nothing to do but enjoy it.
 		promptObj.Enabled = false
 	end
-end
-
-local function setStage(planter: Model, promptObj: ProximityPrompt, stage: number)
-	planter:SetAttribute("Stage", stage)
-	refreshPrompt(planter, promptObj)
 end
 
 local function setup(planter: Model)
@@ -1520,30 +1930,43 @@ local function setup(planter: Model)
 	local promptObj = soil:FindFirstChild("GardenPrompt") :: ProximityPrompt
 	-- Bumped on every replant so an old growth timer can't advance a new crop.
 	local generation = 0
+	local stepTime = Config.GrowSeconds / (RIPE - 1)
 
-	refreshPrompt(planter, promptObj)
+	local function set(stage: number, thirsty: boolean)
+		planter:SetAttribute("Stage", stage)
+		planter:SetAttribute("Thirsty", thirsty)
+		refreshPrompt(planter, promptObj)
+	end
+
+	set(planter:GetAttribute("Stage") :: number? or 0, false)
 
 	promptObj.Triggered:Connect(function(player)
 		local stage = planter:GetAttribute("Stage") :: number
 		local crop = planter:GetAttribute("Crop") :: string
+		local thirsty = planter:GetAttribute("Thirsty") == true
 
 		if stage == 0 then
 			generation += 1
+			set(1, true)
+			Notify.pop(planter, 0.6) -- the client plays the "Pop" sound with every pop
+		elseif stage < RIPE and thirsty then
 			local myGeneration = generation
-			setStage(planter, promptObj, 1)
-			Notify.pop(planter, 0.6)
-			local stepTime = Config.GrowSeconds / (RIPE - 1)
-			for nextStage = 2, RIPE do
-				task.delay(stepTime * (nextStage - 1), function()
-					if generation == myGeneration and planter.Parent then
-						setStage(planter, promptObj, nextStage)
-					end
-				end)
-			end
+			set(stage, false)
+			Notify.sfx("Water", soil.Position)
+			task.delay(stepTime, function()
+				if generation ~= myGeneration or not planter.Parent then
+					return
+				end
+				local nextStage = stage + 1
+				-- Soil dries out after each growth spurt until the plant is ripe.
+				set(nextStage, nextStage < RIPE)
+			end)
 		elseif stage >= RIPE then
-			setStage(planter, promptObj, 0)
+			generation += 1
+			set(0, false)
 			PlayerData.addItem(player, crop, Config.HarvestYield)
 			PlayerData.bumpStat(player, "Harvested")
+			Notify.sfx("Harvest", soil.Position)
 			Notify.toast(player, `+{Config.HarvestYield} {ItemsModule.Items[crop].Name}`, "good")
 		end
 	end)
@@ -1560,7 +1983,7 @@ return GardenService
 
 install("ServerScriptService/Server/Services", "InteractionsService", "ModuleScript", [=[
 --!strict
--- Small one-off interactions around the street: the noodle vending machine and Byte the cat.
+-- Small one-off interactions: the noodle vending machine, Byte the cat and the home elevator.
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -1577,7 +2000,24 @@ local PURRS = {
 
 local InteractionsService = {}
 
-function InteractionsService.start(vending: BasePart, cat: Model)
+export type Elevators = { Up: BasePart, Down: BasePart, HomeArrival: CFrame, StreetArrival: CFrame }
+
+local function wireElevator(door: BasePart, arrival: CFrame)
+	local promptObj = door:FindFirstChild("ElevatorPrompt") :: ProximityPrompt
+	promptObj.Triggered:Connect(function(player)
+		local character = player.Character
+		if not character then
+			return
+		end
+		Notify.sfx("Elevator", nil, player)
+		character:PivotTo(arrival)
+	end)
+end
+
+function InteractionsService.start(vending: BasePart, cat: Model, elevators: Elevators)
+	wireElevator(elevators.Up, elevators.HomeArrival)
+	wireElevator(elevators.Down, elevators.StreetArrival)
+
 	local buy = vending:FindFirstChild("BuyPrompt") :: ProximityPrompt
 	buy.ObjectText = `Vending · {Config.NoodleBrickPrice} cr`
 	buy.Triggered:Connect(function(player)
@@ -1599,6 +2039,7 @@ function InteractionsService.start(vending: BasePart, cat: Model)
 		end
 		lastPet[player] = now
 		Notify.pop(cat, 1)
+		Notify.sfx("Purr", (cat.PrimaryPart :: BasePart).Position)
 		Notify.toast(player, PURRS[math.random(1, #PURRS)], "info")
 	end)
 end
@@ -1615,6 +2056,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Toast = Remotes:WaitForChild("Toast") :: RemoteEvent
 local Pop = Remotes:WaitForChild("Pop") :: RemoteEvent
+local Sfx = Remotes:WaitForChild("Sfx") :: RemoteEvent
 
 local Notify = {}
 
@@ -1626,6 +2068,16 @@ end
 -- Ask every client to give an instance a springy bounce.
 function Notify.pop(target: Instance, strength: number?)
 	Pop:FireAllClients(target, strength or 1)
+end
+
+-- Play a one-shot from Config.Sounds for everyone, at a world position (3D) or as 2D UI
+-- sound when `at` is nil. Pass `player` to play it for one person only.
+function Notify.sfx(key: string, at: Vector3?, player: Player?)
+	if player then
+		Sfx:FireClient(player, key, at)
+	else
+		Sfx:FireAllClients(key, at)
+	end
 end
 
 return Notify
@@ -2103,6 +2555,7 @@ local controllers = {
 	require(Controllers:WaitForChild("PlantVisuals")),
 	require(Controllers:WaitForChild("HudController")),
 	require(Controllers:WaitForChild("RainController")),
+	require(Controllers:WaitForChild("AudioController")),
 }
 
 for _, controller in controllers do
@@ -2316,6 +2769,231 @@ end
 return AmbientController
 ]=])
 
+install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "AudioController", "ModuleScript", [=[
+--!strict
+-- Zone-aware sound. The mix crossfades as you walk between the Street, the Rooftop, your
+-- Balcony ("Home") and Indoors. Rain and the city get muffled behind the window, and the
+-- room picks up a living-room reverb. Every sound id lives in Config.Sounds; blank ids are
+-- skipped, so this runs silently until you add audio. Full plan: docs/LIGHTING_AND_AUDIO.md.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local CollectionService = game:GetService("CollectionService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Zones = require(Shared.Zones)
+
+local AudioController = {}
+
+local Sounds = Config.Sounds :: { [string]: string }
+local player = Players.LocalPlayer
+
+-- Mix ----------------------------------------------------------------------
+
+local function group(name: string, volume: number): SoundGroup
+	local g = Instance.new("SoundGroup")
+	g.Name = name
+	g.Volume = volume
+	g.Parent = SoundService
+	return g
+end
+
+local Groups = {
+	Music = group("Music", 0.6),
+	Outside = group("Outside", 1), -- rain + city: muffled indoors
+	Ambience = group("Ambience", 1),
+	World = group("World", 0.9), -- positional loops and 3D one-shots
+	UI = group("UI", 0.7),
+}
+
+-- Target volume of each looping bed per zone. Missing = silent.
+local BEDS: { [string]: { group: SoundGroup } } = {
+	Rain = { group = Groups.Outside },
+	CityHum = { group = Groups.Outside },
+	RoomTone = { group = Groups.Ambience },
+	RooftopWind = { group = Groups.Ambience },
+	MusicNight = { group = Groups.Music },
+	MusicHome = { group = Groups.Music },
+}
+
+local MIX: { [string]: { [string]: number } } = {
+	Street = { Rain = 0.5, CityHum = 0.35, MusicNight = 0.35 },
+	Rooftop = { Rain = 0.6, CityHum = 0.25, RooftopWind = 0.35, MusicNight = 0.3 },
+	Home = { Rain = 0.45, CityHum = 0.3, RoomTone = 0.08, MusicHome = 0.3 },
+	Indoors = { Rain = 0.35, CityHum = 0.15, RoomTone = 0.3, MusicHome = 0.4 },
+}
+
+local REVERB: { [string]: Enum.ReverbType } = {
+	Street = Enum.ReverbType.Alley,
+	Rooftop = Enum.ReverbType.City,
+	Home = Enum.ReverbType.City,
+	Indoors = Enum.ReverbType.LivingRoom,
+}
+
+-- How loud each positional loop is, and how far it carries (studs).
+local EMITTERS: { [string]: { volume: number, range: number } } = {
+	BrothSimmer = { volume = 0.5, range = 30 },
+	VendingHum = { volume = 0.3, range = 20 },
+	GrowLampHum = { volume = 0.2, range = 18 },
+	NeonBuzz = { volume = 0.15, range = 14 },
+	Fridge = { volume = 0.2, range = 14 },
+}
+
+local function damp(a: number, b: number, sharpness: number, dt: number): number
+	return a + (b - a) * (1 - math.exp(-sharpness * dt))
+end
+
+-- One-shots ------------------------------------------------------------------
+
+local rng = Random.new()
+
+local function playOneShot(key: string, at: Vector3?)
+	local id = Sounds[key]
+	if not id or id == "" then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = id
+	sound.PlaybackSpeed = rng:NextNumber(0.94, 1.06) -- small pitch wobble keeps repeats cute
+	if at then
+		local anchor = Instance.new("Attachment")
+		anchor.WorldPosition = at
+		anchor.Parent = workspace.Terrain
+		sound.SoundGroup = Groups.World
+		sound.RollOffMinDistance = 6
+		sound.RollOffMaxDistance = 60
+		sound.Parent = anchor
+		sound.Ended:Once(function()
+			anchor:Destroy()
+		end)
+	else
+		sound.SoundGroup = Groups.UI
+		sound.Parent = SoundService
+		sound.Ended:Once(function()
+			sound:Destroy()
+		end)
+	end
+	sound:Play()
+end
+
+local function positionOf(inst: Instance): Vector3?
+	if inst:IsA("BasePart") then
+		return inst.Position
+	elseif inst:IsA("Model") then
+		return inst:GetPivot().Position
+	end
+	return nil
+end
+
+-- Start ----------------------------------------------------------------------
+
+function AudioController.start()
+	-- Looping beds, all started at volume 0 and crossfaded by zone.
+	local beds: { [string]: Sound } = {}
+	for key, info in BEDS do
+		local id = Sounds[key]
+		if id and id ~= "" then
+			local sound = Instance.new("Sound")
+			sound.Name = key
+			sound.SoundId = id
+			sound.Looped = true
+			sound.Volume = 0
+			sound.SoundGroup = info.group
+			sound.Parent = SoundService
+			sound:Play()
+			beds[key] = sound
+		end
+	end
+
+	-- Behind glass, highs disappear first: that's what makes indoors feel safe and warm.
+	local muffle = Instance.new("EqualizerSoundEffect")
+	muffle.LowGain = 0
+	muffle.MidGain = 0
+	muffle.HighGain = 0
+	muffle.Parent = Groups.Outside
+
+	-- Positional loops on tagged parts.
+	local function addEmitter(inst: Instance)
+		local key = inst:GetAttribute("SoundKey") :: string?
+		local id = key and Sounds[key]
+		if not (key and id and id ~= "" and inst:IsA("BasePart")) then
+			return
+		end
+		local spec = EMITTERS[key] or { volume = 0.3, range = 20 }
+		local sound = Instance.new("Sound")
+		sound.Name = key
+		sound.SoundId = id
+		sound.Looped = true
+		sound.Volume = spec.volume
+		sound.RollOffMode = Enum.RollOffMode.InverseTapered
+		sound.RollOffMinDistance = 3
+		sound.RollOffMaxDistance = spec.range
+		sound.SoundGroup = Groups.World
+		sound.Parent = inst
+		sound.TimePosition = rng:NextNumber(0, 4) -- de-sync identical loops
+		sound:Play()
+	end
+	for _, inst in CollectionService:GetTagged("AudioEmitter") do
+		addEmitter(inst)
+	end
+	CollectionService:GetInstanceAddedSignal("AudioEmitter"):Connect(addEmitter)
+
+	-- Server-requested one-shots, plus a pop sound with every Juice pop.
+	local remotes = ReplicatedStorage:WaitForChild("Remotes");
+	(remotes:WaitForChild("Sfx") :: RemoteEvent).OnClientEvent:Connect(function(key: string, at: Vector3?)
+		playOneShot(key, at)
+	end);
+	(remotes:WaitForChild("Pop") :: RemoteEvent).OnClientEvent:Connect(function(target: Instance?)
+		if target then
+			playOneShot("Pop", positionOf(target))
+		end
+	end);
+	(remotes:WaitForChild("Toast") :: RemoteEvent).OnClientEvent:Connect(function(_, tone: string)
+		if tone == "nope" then
+			playOneShot("Nope")
+		end
+	end)
+
+	-- Coins: only when credits go up.
+	local lastCredits = player:GetAttribute("Credits") :: number?
+	player:GetAttributeChangedSignal("Credits"):Connect(function()
+		local now = player:GetAttribute("Credits") :: number?
+		if lastCredits and now and now > lastCredits then
+			playOneShot("Coin")
+		end
+		lastCredits = now
+	end)
+
+	-- Zone crossfade.
+	local zone = "Street"
+	RunService.Heartbeat:Connect(function(dt)
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root then
+			local current = Zones.at(root.Position)
+			if current ~= zone then
+				zone = current
+				SoundService.AmbientReverb = REVERB[zone] or Enum.ReverbType.NoReverb
+			end
+		end
+
+		local mix = MIX[zone] or {}
+		for key, sound in beds do
+			sound.Volume = damp(sound.Volume, mix[key] or 0, 1.5, dt)
+		end
+		local indoors = zone == "Indoors"
+		muffle.HighGain = damp(muffle.HighGain, if indoors then -30 else 0, 3, dt)
+		muffle.MidGain = damp(muffle.MidGain, if indoors then -10 else 0, 3, dt)
+	end)
+	SoundService.AmbientReverb = REVERB[zone]
+end
+
+return AudioController
+]=])
+
 install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "CameraController", "ModuleScript", [=[
 --!strict
 -- Cozy diorama camera: high angle, narrow FOV, soft tilt-shift blur, smooth follow.
@@ -2325,6 +3003,9 @@ install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "CameraControll
 --   Z / C  or  L1 / R1 : rotate 45° (E is the interact key, so we stay off it)
 --   Mouse wheel        : zoom
 --   V                  : toggle back to the default Roblox camera
+--
+-- At home (apartment + balcony) the camera switches to first person, like Tiny Eden:
+-- the home is a place you stand *in*, the city is a place you look *at*.
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -2333,6 +3014,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Zones = require(Shared.Zones)
 
 local CameraController = {}
 
@@ -2340,6 +3022,7 @@ local cfg = Config.Camera
 local player = Players.LocalPlayer
 
 local enabled = true
+local atHome = false
 local targetYaw = math.rad(cfg.StartYaw)
 local currentYaw = targetYaw
 local targetDistance = cfg.Distance
@@ -2400,11 +3083,19 @@ function CameraController.start()
 	dof.Parent = camera
 
 	local function apply()
-		if enabled then
+		if atHome and Config.FirstPersonAtHome then
+			camera.CameraType = Enum.CameraType.Custom
+			player.CameraMode = Enum.CameraMode.LockFirstPerson
+			camera.FieldOfView = 70
+			dof.Enabled = false
+			clearOcclusion()
+		elseif enabled then
+			player.CameraMode = Enum.CameraMode.Classic
 			camera.CameraType = Enum.CameraType.Scriptable
 			camera.FieldOfView = cfg.FieldOfView
 			dof.Enabled = true
 		else
+			player.CameraMode = Enum.CameraMode.Classic
 			camera.CameraType = Enum.CameraType.Custom
 			camera.FieldOfView = 70
 			dof.Enabled = false
@@ -2448,12 +3139,20 @@ function CameraController.start()
 	end)
 
 	RunService:BindToRenderStep("CozyCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
-		if not enabled then
-			return
-		end
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if not (character and root) then
+			return
+		end
+
+		local home = Zones.contains("Home", root.Position)
+		if home ~= atHome then
+			atHome = home
+			-- Elevator rides teleport; snap instead of gliding across the whole city.
+			focus = nil
+			apply()
+		end
+		if atHome or not enabled then
 			return
 		end
 		if camera.CameraType ~= Enum.CameraType.Scriptable then
@@ -2749,10 +3448,12 @@ return HudController
 
 install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "PlantVisuals", "ModuleScript", [=[
 --!strict
--- Draws the crops in each rooftop planter from its "Crop" + "Stage" attributes and pops them
--- in with a spring every time they grow. Stages: 0 empty, 1 sprout, 2 leafy, 3 ripe.
+-- Draws the crops in each planter from its "Crop" + "Stage" attributes and pops them in with
+-- a spring every time they grow. Stages: 0 empty, 1 sprout, 2 leafy, 3 ripe.
+-- Also shows soil moisture: dark when watered, pale and dusty with a droplet when "Thirsty".
 
 local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Juice = require(Shared.Juice)
@@ -2873,8 +3574,12 @@ local function render(planter: Model)
 	-- Stable per-planter seed so the plants don't reshuffle every stage.
 	local rng = Random.new(#planter.Name * 7919 + math.floor(soil.Position.X * 13 + soil.Position.Z))
 	local top = soil.CFrame * CFrame.new(0, soil.Size.Y / 2, 0)
+	-- Offsets are authored for the big 5.2-wide rooftop soil; shrink them for small pots.
+	local spread = math.min(soil.Size.X / 5.2, soil.Size.Z / 4.2)
+	local scale = (planter:GetAttribute("PlantScale") :: number?) or 1
+	local positions = if spread < 0.35 then { Vector3.zero } else nil
 	for _, offset in
-		{
+		positions or {
 			Vector3.new(-1.4, 0, -1),
 			Vector3.new(1.3, 0, -0.9),
 			Vector3.new(-1.2, 0, 1.1),
@@ -2882,7 +3587,7 @@ local function render(planter: Model)
 			Vector3.new(0, 0, 0),
 		}
 	do
-		sprout(plants, top * CFrame.new(offset), crop, stage, rng)
+		sprout(plants, top * CFrame.new(offset * spread), crop, stage, rng)
 	end
 
 	if stage >= 3 then
@@ -2896,8 +3601,57 @@ local function render(planter: Model)
 
 	-- Scale from the soil surface so plants grow up out of the dirt.
 	plants.WorldPivot = top
+	if scale ~= 1 then
+		plants:ScaleTo(scale)
+	end
 	plants.Parent = planter
 	Juice.popIn(plants)
+end
+
+local WET = Palette.Soil
+local DRY = Palette.SoilDry
+
+local function renderMoisture(planter: Model)
+	local soil = planter:FindFirstChild("Soil") :: BasePart?
+	if not soil then
+		return
+	end
+	local stage = (planter:GetAttribute("Stage") :: number?) or 0
+	local thirsty = planter:GetAttribute("Thirsty") == true
+	-- Empty or ripe planters keep damp-looking soil; only growing plants dry out.
+	local wet = not thirsty
+	TweenService:Create(soil, TweenInfo.new(if wet then 0.6 else 2.5), { Color = if wet then WET else DRY })
+		:Play()
+
+	local drop = soil:FindFirstChild("ThirstyDrop") :: BillboardGui?
+	if thirsty and stage > 0 then
+		if not drop then
+			local gui = Instance.new("BillboardGui")
+			gui.Name = "ThirstyDrop"
+			gui.Size = UDim2.fromOffset(36, 36)
+			gui.StudsOffsetWorldSpace = Vector3.new(0, 2.2, 0)
+			gui.AlwaysOnTop = true
+			gui.LightInfluence = 0
+			gui.MaxDistance = 60
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Size = UDim2.fromScale(1, 1)
+			label.Text = "💧"
+			label.TextScaled = true
+			label.Parent = gui
+			gui.Parent = soil
+			-- Gentle bob so it reads as "asking" rather than "warning".
+			task.spawn(function()
+				local t = 0
+				while gui.Parent do
+					t += task.wait()
+					gui.StudsOffsetWorldSpace = Vector3.new(0, 2.2 + math.sin(t * 3) * 0.2, 0)
+				end
+			end)
+		end
+	elseif drop then
+		drop:Destroy()
+	end
 end
 
 function PlantVisuals.start()
@@ -2906,8 +3660,12 @@ function PlantVisuals.start()
 			return
 		end
 		render(inst)
+		renderMoisture(inst)
 		inst:GetAttributeChangedSignal("Stage"):Connect(function()
 			render(inst)
+		end)
+		inst:GetAttributeChangedSignal("Thirsty"):Connect(function()
+			renderMoisture(inst)
 		end)
 	end
 	for _, inst in CollectionService:GetTagged("Planter") do
@@ -2921,32 +3679,18 @@ return PlantVisuals
 
 install("StarterPlayer/StarterPlayerScripts/Client/Controllers", "RainController", "ModuleScript", [=[
 --!strict
--- Soft, constant drizzle that follows the camera, plus optional ambience loops.
+-- Soft, constant drizzle that follows the player. (Rain *sound* lives in AudioController.)
 -- Rain is the bridge between the two moods: it's cozy (listen to it from under the awning)
 -- and it's cyberpunk (neon smeared on wet asphalt).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Config = require(Shared.Config)
 local Palette = require(Shared.Palette)
+local Zones = require(Shared.Zones)
 
 local RainController = {}
-
-local function loop(name: string, id: string, volume: number)
-	if id == "" then
-		return
-	end
-	local sound = Instance.new("Sound")
-	sound.Name = name
-	sound.SoundId = id
-	sound.Looped = true
-	sound.Volume = volume
-	sound.Parent = SoundService
-	sound:Play()
-end
 
 function RainController.start()
 	local emitterPart = Instance.new("Part")
@@ -2976,15 +3720,20 @@ function RainController.start()
 	rain.LightInfluence = 0.6
 	rain.Parent = emitterPart
 
-	loop("Rain", Config.Sounds.Rain, 0.35)
-	loop("CityHum", Config.Sounds.CityHum, 0.2)
-
 	local player = Players.LocalPlayer
 	RunService.Heartbeat:Connect(function()
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local center = if root then root.Position else workspace.CurrentCamera.Focus.Position
-		emitterPart.CFrame = CFrame.new(center.X, center.Y + 60, center.Z)
+		if Zones.contains("Home", center) then
+			-- At home: rain only outside the window line (z < 22) so the room stays dry and
+			-- you watch it fall past the glass onto the balcony and the street below.
+			emitterPart.Size = Vector3.new(80, 1, 30)
+			emitterPart.CFrame = CFrame.new(center.X, center.Y + 40, 6)
+		else
+			emitterPart.Size = Vector3.new(120, 1, 120)
+			emitterPart.CFrame = CFrame.new(center.X, center.Y + 60, center.Z)
+		end
 	end)
 end
 

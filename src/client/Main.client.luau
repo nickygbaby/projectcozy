@@ -9,6 +9,7 @@ local controllers = {
 	require(Controllers:WaitForChild("PlantVisuals")),
 	require(Controllers:WaitForChild("HudController")),
 	require(Controllers:WaitForChild("RainController")),
+	require(Controllers:WaitForChild("AudioController")),
 }
 
 for _, controller in controllers do

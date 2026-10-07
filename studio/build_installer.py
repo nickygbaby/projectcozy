@@ -4,8 +4,8 @@ root = sys.argv[1]
 entries = []
 def add(rel, parent, name, cls):
     entries.append((rel, parent, name, cls))
-for f in ["Config","Palette","Items","Juice"]:
-    add(f"src/shared/{f}.luau", "ReplicatedStorage/Shared", f, "ModuleScript")
+for f in sorted(os.listdir(f"{root}/src/shared")):
+    add(f"src/shared/{f}", "ReplicatedStorage/Shared", f[:-5], "ModuleScript")
 add("src/server/Main.server.luau", "ServerScriptService/Server", "Main", "Script")
 for f in sorted(os.listdir(f"{root}/src/server/Services")):
     add(f"src/server/Services/{f}", "ServerScriptService/Server/Services", f[:-5], "ModuleScript")
@@ -75,7 +75,7 @@ end
 
 local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
-for _, name in { "Toast", "Pop" } do
+for _, name in { "Toast", "Pop", "Sfx" } do
 	local r = Instance.new("RemoteEvent")
 	r.Name = name
 	r.Parent = remotes

@@ -6,6 +6,9 @@
 --   Z / C  or  L1 / R1 : rotate 45° (E is the interact key, so we stay off it)
 --   Mouse wheel        : zoom
 --   V                  : toggle back to the default Roblox camera
+--
+-- At home (apartment + balcony) the camera switches to first person, like Tiny Eden:
+-- the home is a place you stand *in*, the city is a place you look *at*.
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -14,6 +17,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Zones = require(Shared.Zones)
 
 local CameraController = {}
 
@@ -21,6 +25,7 @@ local cfg = Config.Camera
 local player = Players.LocalPlayer
 
 local enabled = true
+local atHome = false
 local targetYaw = math.rad(cfg.StartYaw)
 local currentYaw = targetYaw
 local targetDistance = cfg.Distance
@@ -81,11 +86,19 @@ function CameraController.start()
 	dof.Parent = camera
 
 	local function apply()
-		if enabled then
+		if atHome and Config.FirstPersonAtHome then
+			camera.CameraType = Enum.CameraType.Custom
+			player.CameraMode = Enum.CameraMode.LockFirstPerson
+			camera.FieldOfView = 70
+			dof.Enabled = false
+			clearOcclusion()
+		elseif enabled then
+			player.CameraMode = Enum.CameraMode.Classic
 			camera.CameraType = Enum.CameraType.Scriptable
 			camera.FieldOfView = cfg.FieldOfView
 			dof.Enabled = true
 		else
+			player.CameraMode = Enum.CameraMode.Classic
 			camera.CameraType = Enum.CameraType.Custom
 			camera.FieldOfView = 70
 			dof.Enabled = false
@@ -129,12 +142,20 @@ function CameraController.start()
 	end)
 
 	RunService:BindToRenderStep("CozyCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
-		if not enabled then
-			return
-		end
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if not (character and root) then
+			return
+		end
+
+		local home = Zones.contains("Home", root.Position)
+		if home ~= atHome then
+			atHome = home
+			-- Elevator rides teleport; snap instead of gliding across the whole city.
+			focus = nil
+			apply()
+		end
+		if atHome or not enabled then
 			return
 		end
 		if camera.CameraType ~= Enum.CameraType.Scriptable then

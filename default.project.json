@@ -13,6 +13,9 @@
         },
         "Pop": {
           "$className": "RemoteEvent"
+        },
+        "Sfx": {
+          "$className": "RemoteEvent"
         }
       }
     },

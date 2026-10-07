@@ -4,10 +4,11 @@
 
 ## Pitch
 
-**Lantern Row** is a rain-soaked, neon-lit street in a giant megacity, shown as a tiny
-toybox diorama. You run **Lucky Byte Noodles**, a three-stool ramen stall. You grow glowing
-ingredients in a rooftop garden and serve bowls to tired regulars. Bit by bit you turn one
-lonely street corner into the warmest spot in the city.
+You live in a tiny apartment high above **Lantern Row**, a rain-soaked, neon-lit street in a
+grey megacity. Your windowsill and balcony become a little indoor garden. Downstairs you
+run **Lucky Byte Noodles**, a three-stool ramen stall, and cook what you grow for tired
+regulars. Bit by bit, a drab flat and one lonely street corner turn into the warmest spot in
+the city.
 
 It's *Cyberpunk 2077*'s city, seen through *Tiny Eden*'s eyes, with *Nivalis*' after-hours
 heart.
@@ -16,7 +17,7 @@ heart.
 
 | Inspiration | What we borrow | What we leave behind |
 |---|---|---|
-| **Tiny Eden** | Diorama camera, chunky rounded toy shapes, squash-and-stretch on everything, soft lighting, the satisfaction of a small space slowly filling with life | Bright daytime-only palette |
+| **Tiny Eden** | A futuristic-city **apartment** you fill with plants. First-person, hands-on time at home. A **plant-care ritual** (water, light, patience). Pots on the windowsill and balcony. A cat companion. Cooking what you grow and filling neighbors' orders. Buying furniture and **light fixtures**. The contrast of a muted grey city outside and a vibrant garden inside | Deep soil-chemistry simulation (too fiddly for Roblox sessions) |
 | **Cyberpunk 2077** | Neon signage, wet streets, megacity scale through haze, chrome and augments, street-food culture, slang flavor ("choom") | Violence, grit, corporate dread as the main theme |
 | **Nivalis** | Running a small business at night, regulars with stories, gentle routines, slice-of-life rhythm | Long text-heavy dialogue (Roblox players skim) |
 
@@ -26,8 +27,9 @@ heart.
    never lose money, items, or progress. Tips reward speed, but slowness is never punished.
 2. **Neon after dark.** The city spends most of its time at night (daytime runs 3x faster).
    Light sources are the stars of every scene.
-3. **A tiny world you could hold.** The diorama camera, narrow FOV and tilt-shift blur make
-   the city feel like a model on a desk. Scale and density come before size.
+3. **Grey city, green home.** Home is first-person, warm and alive, and it slowly fills
+   with plants. The street is seen as a small diorama (narrow FOV, tilt-shift), muted except
+   for neon. Scale and density come before size.
 4. **Everything bounces.** Every interaction gets a springy reaction: plants pop up, the pot
    wobbles when you serve, customers hop when happy. If it doesn't squish, it isn't done.
 
@@ -39,9 +41,10 @@ heart.
     └────────────────────────────────────────────────────────┘
 ```
 
-1. **Grow:** Climb to the Sky Garden and plant Synth Scallions, Glowshrooms or Ember Chilis
-   under purple grow lamps. Crops sprout, leaf out and ripen over about 45 seconds.
-   Harvesting gives 2.
+1. **Grow:** At home (take the **↑ HOME** elevator next to the stall), tend windowsill pots
+   and balcony planters in first person. Or climb to the shared Sky Garden. Plant →
+   **Water** → it grows a stage → the soil dries (pale soil, 💧) → water again → harvest.
+   About 45 seconds of watered time to ripe; harvesting gives 2. Nothing ever wilts.
 2. **Buy:** Noodle Bricks come from the vending machine (4 cr).
 3. **Serve:** Chibi customers pop onto the stools with an order bubble and a patience bar.
    Serve the bowl if you have the ingredients. You earn the price plus a tip of up to 50%
@@ -73,14 +76,22 @@ All numbers live in `src/shared/Config.luau` and `src/shared/Items.luau`.
 ### M0: Vertical slice (this commit)
 - [x] Greybox district built from code (street, skyline, stall, vending, garden, robo-cat)
 - [x] Night-biased day/night cycle with keyframed neon haze
-- [x] Diorama camera with rotate, zoom, tilt-shift and occluder fading
+- [x] Diorama camera with rotate, zoom, tilt-shift and occluder fading (street)
+- [x] Apartment + balcony above the stall, first-person at home, elevator
+- [x] Tiny Eden care ritual: water → grow → dries out → water again
+- [x] Zone-based audio system and lighting/audio map (docs/LIGHTING_AND_AUDIO.md)
 - [x] Spring-based juice library (squash, pop-in, pop-out, hop)
 - [x] Grow → serve → earn loop with saved credits and inventory
 - [x] Rain, flickering neon, bobbing lanterns, HUD and toasts
 
 ### M1: Make it feel *owned*
-- [ ] Your own **micro-apartment** above the stall: place furniture on a grid (Tiny Eden
-      building feel) and earn a "Cozy Rating"
+- [ ] Furnish the apartment: place furniture, pots and **light fixtures** on a grid and earn a
+      "Cozy Rating". Unlock more windowsill/balcony slots
+- [ ] Neighbor orders board (Tiny Eden): requests for jars, pickles and broths, paid in
+      credits + friendship
+- [ ] Deeper care: light level (pots need a grow light or sunny side), fertilizer for bonus
+      yield
+- [ ] Byte visits the apartment and naps in the cat bed
 - [ ] Stall upgrades: 4th stool, better pot (faster cook), neon sign color picker
 - [ ] Cooking minigame: a short, tactile stir/pour step instead of a single prompt
 - [ ] Real art pass: replace greybox parts with chunky meshes (see ART_DIRECTION.md)

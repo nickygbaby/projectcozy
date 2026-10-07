@@ -7,13 +7,15 @@ local function hex(code: string): Color3
 end
 
 local Palette = {
-	-- Night sky & city mass
-	Ink = hex("#0f0c1f"),
-	Indigo = hex("#1b1538"),
-	Violet = hex("#2e2257"),
-	Asphalt = hex("#221d36"),
-	Concrete = hex("#3c3558"),
-	Brick = hex("#5a3f63"),
+	-- Night sky & city mass. Deliberately muted and synthetic (Tiny Eden's grey megacity)
+	-- so that plants, home and neon are the only saturated things on screen.
+	Ink = hex("#0f0e1a"),
+	Indigo = hex("#1c1a2c"),
+	Violet = hex("#2f2b45"),
+	Asphalt = hex("#23212e"),
+	Concrete = hex("#43414f"),
+	Brick = hex("#4d4757"),
+	Steel = hex("#6b6c78"),
 
 	-- Toybox (cozy, matte, rounded)
 	Cream = hex("#fff1d6"),
@@ -26,6 +28,9 @@ local Palette = {
 	Wood = hex("#8a5a44"),
 	Soil = hex("#3b2a2a"),
 	Leaf = hex("#5fd38a"),
+	LeafDeep = hex("#2f9e5f"),
+	SoilDry = hex("#7a6150"),
+	Terracotta = hex("#d9825b"),
 
 	-- Neon (emissive only)
 	NeonPink = hex("#ff4fa3"),
